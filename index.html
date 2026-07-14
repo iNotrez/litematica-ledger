@@ -93,6 +93,13 @@ button{cursor:pointer;}
   transition:all .2s var(--ease);display:none;
 }
 .load-another:hover{border-color:var(--grass-dim);color:var(--grass);}
+.masthead-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.texture-pack-btn{
+  background:none;border:1px solid var(--line);color:var(--text-dim);
+  padding:9px 16px;border-radius:6px;font-size:13px;font-weight:500;
+  transition:all .2s var(--ease);
+}
+.texture-pack-btn:hover{border-color:var(--diamond);color:var(--diamond);}
 
 /* ============================= UPLOAD SCREEN ============================= */
 #uploadScreen{padding-top:6vh;}
@@ -291,8 +298,9 @@ tbody td{padding:11px 16px;font-size:13.5px;vertical-align:middle;}
 .checkbox:hover{border-color:var(--grass);}
 
 .block-name{display:flex;align-items:center;gap:10px;}
-.block-icon-wrap{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.block-icon-wrap{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:4px;}
 .iso-cube{width:24px;height:24px;display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.4));}
+.block-texture{width:24px;height:24px;display:block;image-rendering:pixelated;border-radius:4px;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset, 0 1px 2px rgba(0,0,0,.35);background:#111;}
 .name-text{font-weight:500;}
 .name-id{color:var(--text-faint);font-family:var(--font-mono);font-size:11px;margin-left:8px;}
 
@@ -357,6 +365,28 @@ tbody tr.row-entering{
 .pagination button:not(:disabled):hover{border-color:var(--grass-dim);color:var(--grass);}
 .pagination .page-info{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);}
 
+.overall-progress-card{
+  margin:0 0 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:18px 18px 16px;
+}
+.overall-progress-card:empty{display:none;}
+.progress-summary-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.progress-summary-kicker{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:6px;}
+.progress-summary-title{font-size:14px;color:var(--text-dim);}
+.progress-summary-pct{font-family:var(--font-display);font-size:28px;font-weight:700;color:var(--grass);line-height:1;}
+.progress-summary-track{width:100%;height:10px;background:var(--deepslate);border-radius:999px;overflow:hidden;}
+.progress-summary-fill{height:100%;width:0;background:linear-gradient(90deg,var(--grass-dim),var(--grass),var(--diamond));border-radius:999px;transition:width .35s ease;}
+.progress-summary-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);}
+.progress-summary-meta strong{color:var(--text-dim);font-weight:600;}
+.texture-pack-status{
+  margin:0 0 16px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);
+  background:rgba(255,255,255,.02);font-size:12.5px;color:var(--text-dim);line-height:1.5;
+}
+.texture-pack-status:empty{display:none;}
+.texture-pack-status strong{color:var(--text);}
+.texture-pack-status.accent-ready{border-color:rgba(111,215,209,.35);background:rgba(111,215,209,.06);}
+.texture-pack-status.accent-note{border-color:rgba(227,179,82,.28);background:rgba(227,179,82,.06);}
+
 /* footer actions */
 .footer-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
 
@@ -387,7 +417,11 @@ tbody tr.row-entering{
       <h1><span class="brand-mark">▣</span> Ledger</h1>
       <span class="subtitle">litematica material analyzer</span>
     </div>
-    <button class="load-another" id="loadAnotherBtn">Load another file</button>
+    <div class="masthead-actions">
+      <button class="texture-pack-btn" id="texturePackBtn">Load Minecraft textures</button>
+      <button class="load-another" id="loadAnotherBtn">Load another file</button>
+    </div>
+    <input type="file" id="texturePackInput" accept=".zip,.jar,application/zip" style="display:none;">
   </header>
 
   <!-- ============ UPLOAD SCREEN ============ -->
@@ -416,6 +450,8 @@ tbody tr.row-entering{
 
     <div class="ledger" id="ledgerStats"></div>
     <div class="meta-line" id="metaLine"></div>
+    <div class="overall-progress-card" id="overallProgressCard"></div>
+    <div class="texture-pack-status" id="texturePackStatus"></div>
 
     <div class="controls">
       <div class="search-box">
@@ -442,6 +478,10 @@ tbody tr.row-entering{
       <button class="icon-btn" id="printBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2M6 14h12v7H6z" stroke-linejoin="round"/></svg>
         Print
+      </button>
+      <button class="icon-btn" id="resetProgressBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 109-9" stroke-linecap="round"/><path d="M3 4v8h8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Reset progress
       </button>
     </div>
 
@@ -503,14 +543,77 @@ const SHULKER_SIZE = 27 * 64; // 1728
 /* ============================================================
    STATE
    ============================================================ */
+const STORAGE_PREFIX = 'ledger:';
+const UI_PREFS_KEY = `${STORAGE_PREFIX}ui-prefs:v1`;
+
+function safeLoadJSON(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  }catch(_err){
+    return fallback;
+  }
+}
+
+function safeSaveJSON(key, value){
+  try{
+    localStorage.setItem(key, JSON.stringify(value));
+  }catch(_err){
+    // ignore storage quota / access errors
+  }
+}
+
+function updateHash(hash, value){
+  const str = String(value);
+  for(let i=0;i<str.length;i++){
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function buildProgressKey(result){
+  let hash = 2166136261;
+  hash = updateHash(hash, result.meta.name || '');
+  hash = updateHash(hash, result.meta.author || '');
+  hash = updateHash(hash, result.totalBlocks || 0);
+  hash = updateHash(hash, result.blocks.length || 0);
+  const sorted = result.blocks.slice().sort((a,b) => a.id.localeCompare(b.id));
+  for(const block of sorted){
+    hash = updateHash(hash, block.id);
+    hash = updateHash(hash, block.qty);
+  }
+  return `${STORAGE_PREFIX}progress:${hash.toString(16)}`;
+}
+
+function loadCompletedSet(progressKey){
+  const saved = safeLoadJSON(progressKey, []);
+  return new Set(Array.isArray(saved) ? saved : []);
+}
+
+function persistCompleted(fileState){
+  if(!fileState || !fileState.progressKey) return;
+  safeSaveJSON(fileState.progressKey, Array.from(fileState.completed).sort());
+}
+
+function persistUIPrefs(){
+  safeSaveJSON(UI_PREFS_KEY, {
+    sort: state.sort,
+    showCompleted: state.showCompleted,
+  });
+}
+
+const savedPrefs = safeLoadJSON(UI_PREFS_KEY, {});
+
 const state = {
-  files: [],          // { id, name, size, meta, blocks:[{id,name,qty,stacks,shulkers,pct}], completed:Set<string>, processingTime }
+  files: [],          // { id, name, size, meta, blocks:[{id,name,qty,stacks,shulkers,pct}], completed:Set<string>, progressKey, processingTime }
   activeFileId: null,
   search: '',
-  sort: 'qty-desc',
-  showCompleted: true,
+  sort: savedPrefs.sort || 'qty-desc',
+  showCompleted: savedPrefs.showCompleted ?? true,
   page: 0,
   pageSize: 200,
+  texturePack: null,
 };
 
 let fileCounter = 0;
@@ -816,7 +919,172 @@ function isoCubeSvg(v){
 
 function blockIconHtml(id){
   const visual = getBlockVisual(id);
-  return `<span class="block-icon-wrap">${isoCubeSvg(visual)}</span>`;
+  return `<span class="block-icon-wrap" data-block-id="${escapeHtml(id)}">${isoCubeSvg(visual)}</span>`;
+}
+
+const TEXTURE_PREFERRED_KEYS = ['all','side','top','end','texture','front','up','north','particle','layer0','bottom'];
+
+function normalizeBlockId(id){
+  return id.includes(':') ? id.split(':')[1] : id;
+}
+
+function normalizeAssetRef(ref, kind){
+  if(!ref) return null;
+  const cleaned = ref.startsWith('minecraft:') ? ref.slice('minecraft:'.length) : ref;
+  if(kind === 'blockstate') return `assets/minecraft/blockstates/${cleaned.replace(/^blockstates\//,'').replace(/\.json$/,'')}.json`;
+  if(kind === 'model') return `assets/minecraft/models/${cleaned.replace(/^models\//,'').replace(/\.json$/,'')}.json`;
+  if(kind === 'texture') return `assets/minecraft/textures/${cleaned.replace(/^textures\//,'').replace(/\.png$/,'')}.png`;
+  return null;
+}
+
+function pickFirstModelRef(blockstate){
+  if(!blockstate || typeof blockstate !== 'object') return null;
+  if(blockstate.variants){
+    for(const value of Object.values(blockstate.variants)){
+      const chosen = Array.isArray(value) ? value[0] : value;
+      if(chosen && chosen.model) return chosen.model;
+    }
+  }
+  if(Array.isArray(blockstate.multipart)){
+    for(const part of blockstate.multipart){
+      const apply = Array.isArray(part.apply) ? part.apply[0] : part.apply;
+      if(apply && apply.model) return apply.model;
+    }
+  }
+  return null;
+}
+
+function resolveTextureToken(textureMap, token){
+  let resolved = token;
+  let guard = 0;
+  while(typeof resolved === 'string' && resolved.startsWith('#') && guard < 20){
+    resolved = textureMap[resolved.slice(1)];
+    guard++;
+  }
+  return typeof resolved === 'string' ? resolved : null;
+}
+
+async function readPackJson(assetPath, pack = state.texturePack){
+  if(!pack) return null;
+  if(pack.jsonCache.has(assetPath)) return pack.jsonCache.get(assetPath);
+  const entry = pack.zip.file(assetPath);
+  if(!entry){
+    pack.jsonCache.set(assetPath, null);
+    return null;
+  }
+  try{
+    const parsed = JSON.parse(await entry.async('string'));
+    pack.jsonCache.set(assetPath, parsed);
+    return parsed;
+  }catch(_err){
+    pack.jsonCache.set(assetPath, null);
+    return null;
+  }
+}
+
+async function readPackImageDataUrl(assetPath, pack = state.texturePack){
+  if(!pack) return null;
+  if(pack.imageCache.has(assetPath)) return pack.imageCache.get(assetPath);
+  const entry = pack.zip.file(assetPath);
+  if(!entry){
+    pack.imageCache.set(assetPath, null);
+    return null;
+  }
+  const base64 = await entry.async('base64');
+  const url = `data:image/png;base64,${base64}`;
+  pack.imageCache.set(assetPath, url);
+  return url;
+}
+
+async function buildModelTextureMap(modelRef, pack = state.texturePack, seen = new Set()){
+  const assetPath = normalizeAssetRef(modelRef, 'model');
+  if(!pack || !assetPath || seen.has(assetPath) || seen.size > 20) return {};
+  seen.add(assetPath);
+  const model = await readPackJson(assetPath, pack);
+  if(!model) return {};
+  let inherited = {};
+  if(model.parent) inherited = await buildModelTextureMap(model.parent, pack, seen);
+  return { ...inherited, ...(model.textures || {}) };
+}
+
+async function findTextureAssetPath(blockId, pack = state.texturePack){
+  if(!pack) return null;
+  const shortId = normalizeBlockId(blockId);
+  const directCandidates = [
+    normalizeAssetRef(`block/${shortId}`, 'texture'),
+    normalizeAssetRef(`block/${shortId.replace(/^waxed_/, '')}`, 'texture'),
+  ];
+  for(const candidate of directCandidates){
+    if(candidate && pack.zip.file(candidate)) return candidate;
+  }
+
+  const blockstate = await readPackJson(normalizeAssetRef(shortId, 'blockstate'), pack);
+  const modelRef = pickFirstModelRef(blockstate);
+  if(!modelRef) return null;
+
+  const textureMap = await buildModelTextureMap(modelRef, pack);
+  for(const key of TEXTURE_PREFERRED_KEYS){
+    const resolved = resolveTextureToken(textureMap, textureMap[key]);
+    const candidate = normalizeAssetRef(resolved, 'texture');
+    if(candidate && pack.zip.file(candidate)) return candidate;
+  }
+  for(const value of Object.values(textureMap)){
+    const resolved = resolveTextureToken(textureMap, value);
+    const candidate = normalizeAssetRef(resolved, 'texture');
+    if(candidate && pack.zip.file(candidate)) return candidate;
+  }
+  return null;
+}
+
+async function getBlockTextureDataUrl(blockId, pack = state.texturePack){
+  if(!pack) return null;
+  if(pack.blockCache.has(blockId)) return pack.blockCache.get(blockId);
+  const assetPath = await findTextureAssetPath(blockId, pack);
+  const dataUrl = assetPath ? await readPackImageDataUrl(assetPath, pack) : null;
+  pack.blockCache.set(blockId, dataUrl);
+  return dataUrl;
+}
+
+async function hydrateTextureIcons(){
+  const pack = state.texturePack;
+  if(!pack) return;
+  const nodes = Array.from(document.querySelectorAll('.block-icon-wrap[data-block-id]'));
+  const ids = Array.from(new Set(nodes.map(node => node.dataset.blockId).filter(Boolean)));
+  await Promise.all(ids.map(id => getBlockTextureDataUrl(id, pack)));
+  for(const node of nodes){
+    if(!node.isConnected || state.texturePack !== pack) continue;
+    const dataUrl = pack.blockCache.get(node.dataset.blockId);
+    if(dataUrl){
+      node.innerHTML = `<img class="block-texture" src="${dataUrl}" alt="${escapeHtml(node.dataset.blockId)}">`;
+    }
+  }
+}
+
+async function loadTexturePack(file){
+  showOverlay();
+  updateProgress(8, 'Loading Minecraft textures…');
+  try{
+    const buf = await file.arrayBuffer();
+    updateProgress(40, 'Opening .jar / resource pack…');
+    const zip = await JSZip.loadAsync(buf);
+    updateProgress(82, 'Preparing texture lookup…');
+    state.texturePack = {
+      zip,
+      fileName: file.name,
+      jsonCache: new Map(),
+      imageCache: new Map(),
+      blockCache: new Map(),
+      loadedAt: Date.now(),
+    };
+    updateProgress(100, 'Texture pack ready');
+    renderTexturePackStatus();
+    renderTable();
+  }catch(err){
+    console.error(err);
+    alert((err && err.message) ? err.message : 'Could not read the selected Minecraft .jar / resource pack.');
+  }finally{
+    hideOverlay();
+  }
 }
 
 /* ============================================================
@@ -917,6 +1185,8 @@ const fileInput = document.getElementById('fileInput');
 const fileQueue = document.getElementById('fileQueue');
 const uploadScreen = document.getElementById('uploadScreen');
 const dashboard = document.getElementById('dashboard');
+const texturePackBtn = document.getElementById('texturePackBtn');
+const texturePackInput = document.getElementById('texturePackInput');
 const loadAnotherBtn = document.getElementById('loadAnotherBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingStage = document.getElementById('loadingStage');
@@ -944,6 +1214,12 @@ fileInput.addEventListener('change', e => {
   fileInput.value = '';
 });
 loadAnotherBtn.addEventListener('click', () => fileInput.click());
+texturePackBtn.addEventListener('click', () => texturePackInput.click());
+texturePackInput.addEventListener('change', async e => {
+  const [file] = Array.from(e.target.files || []);
+  if(file) await loadTexturePack(file);
+  texturePackInput.value = '';
+});
 
 function showOverlay(){
   loadingOverlay.classList.add('active');
@@ -971,6 +1247,8 @@ async function handleFiles(files){
       const result = await parseLitematic(file, (pct, stage) => updateProgress(pct, stage));
       const t1 = performance.now();
       const id = 'f'+(fileCounter++);
+      const progressKey = buildProgressKey(result);
+      const completed = loadCompletedSet(progressKey);
       state.files.push({
         id,
         name: file.name,
@@ -978,7 +1256,8 @@ async function handleFiles(files){
         meta: result.meta,
         blocks: result.blocks,
         totalBlocks: result.totalBlocks,
-        completed: new Set(),
+        completed,
+        progressKey,
         processingTime: (t1-t0),
       });
       chip.classList.add('status-done');
@@ -1039,14 +1318,20 @@ const processingTimeLabel = document.getElementById('processingTimeLabel');
 const searchInput = document.getElementById('searchInput');
 const sortSelect = document.getElementById('sortSelect');
 const toggleCompleted = document.getElementById('toggleCompleted');
+const overallProgressCard = document.getElementById('overallProgressCard');
+const texturePackStatusEl = document.getElementById('texturePackStatus');
+
+sortSelect.value = state.sort;
+toggleCompleted.checked = state.showCompleted;
 
 searchInput.addEventListener('input', e => { state.search = e.target.value.toLowerCase(); state.page = 0; renderTable(); });
-sortSelect.addEventListener('change', e => { state.sort = e.target.value; renderTable(); });
-toggleCompleted.addEventListener('change', e => { state.showCompleted = e.target.checked; renderTable(); });
+sortSelect.addEventListener('change', e => { state.sort = e.target.value; persistUIPrefs(); renderTable(); });
+toggleCompleted.addEventListener('change', e => { state.showCompleted = e.target.checked; persistUIPrefs(); renderTable(); });
 
 document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
 document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
 document.getElementById('printBtn').addEventListener('click', () => window.print());
+document.getElementById('resetProgressBtn').addEventListener('click', resetActiveProgress);
 
 function getActiveFile(){
   return state.files.find(f => f.id === state.activeFileId);
@@ -1055,6 +1340,8 @@ function getActiveFile(){
 function renderAll(){
   renderTabs();
   renderSummary();
+  renderProgressCard();
+  renderTexturePackStatus();
   renderTable();
 }
 
@@ -1077,7 +1364,7 @@ function renderTabs(){
 
 function renderSummary(){
   const f = getActiveFile();
-  if(!f){ ledgerStatsEl.innerHTML = ''; metaLineEl.innerHTML=''; processingTimeLabel.textContent=''; return; }
+  if(!f){ ledgerStatsEl.innerHTML = ''; metaLineEl.innerHTML=''; processingTimeLabel.textContent=''; overallProgressCard.innerHTML=''; texturePackStatusEl.innerHTML=''; texturePackStatusEl.className='texture-pack-status'; return; }
   const totalStacks = f.blocks.reduce((a,b)=>a+b.qty,0) / STACK_SIZE;
   const totalShulkers = f.blocks.reduce((a,b)=>a+b.qty,0) / SHULKER_SIZE;
 
@@ -1107,6 +1394,46 @@ function renderSummary(){
 
   metaLineEl.innerHTML = `<span>${escapeHtml(f.meta.name)}</span> — by <span>${escapeHtml(f.meta.author)}</span> · ${formatBytes(f.size)}`;
   processingTimeLabel.textContent = `Processed in ${f.processingTime.toFixed(0)} ms`;
+}
+
+function renderProgressCard(){
+  const f = getActiveFile();
+  if(!f){ overallProgressCard.innerHTML = ''; return; }
+  const completedQty = f.blocks.reduce((sum, block) => sum + (f.completed.has(block.id) ? block.qty : 0), 0);
+  const remainingQty = Math.max(f.totalBlocks - completedQty, 0);
+  const completedTypes = f.blocks.filter(block => f.completed.has(block.id)).length;
+  const pct = f.totalBlocks ? (completedQty / f.totalBlocks) * 100 : 0;
+  overallProgressCard.innerHTML = `
+    <div class="progress-summary-head">
+      <div>
+        <div class="progress-summary-kicker">Overall build progress</div>
+        <div class="progress-summary-title">Saved automatically on this device for this schematic.</div>
+      </div>
+      <div class="progress-summary-pct">${pct.toFixed(1)}%</div>
+    </div>
+    <div class="progress-summary-track"><div class="progress-summary-fill" style="width:${pct}%"></div></div>
+    <div class="progress-summary-meta">
+      <span><strong>${completedQty.toLocaleString()}</strong> / ${f.totalBlocks.toLocaleString()} blocks gathered</span>
+      <span><strong>${completedTypes.toLocaleString()}</strong> / ${f.blocks.length.toLocaleString()} block types checked</span>
+      <span><strong>${remainingQty.toLocaleString()}</strong> blocks remaining</span>
+    </div>
+  `;
+}
+
+function renderTexturePackStatus(){
+  const f = getActiveFile();
+  texturePackStatusEl.className = 'texture-pack-status';
+  if(!f && !state.texturePack){
+    texturePackStatusEl.innerHTML = '';
+    return;
+  }
+  if(state.texturePack){
+    texturePackStatusEl.classList.add('accent-ready');
+    texturePackStatusEl.innerHTML = `<strong>Real Minecraft textures loaded:</strong> ${escapeHtml(state.texturePack.fileName)}. Texture icons now use assets from your own .jar / resource pack file.`;
+  } else {
+    texturePackStatusEl.classList.add('accent-note');
+    texturePackStatusEl.innerHTML = `<strong>Using fallback icons.</strong> Click <strong>Load Minecraft textures</strong> and choose your own <code>minecraft.jar</code> or resource pack <code>.zip</code> to show real block textures without bundling Mojang assets.`;
+  }
 }
 
 function getFilteredSorted(f){
@@ -1204,6 +1531,7 @@ function renderTable(){
 
   attachRowHandlers();
   animatePercentBars();
+  hydrateTextureIcons();
 }
 
 function animatePercentBars(){
@@ -1240,8 +1568,21 @@ function onCheckboxToggle(e){
 }
 
 function renderSummaryCounts(){
-  // summary numbers (totals) don't change on completion, only the split between lists.
-  // kept as a hook in case future stats depend on completion state.
+  const f = getActiveFile();
+  if(!f) return;
+  persistCompleted(f);
+  renderProgressCard();
+}
+
+function resetActiveProgress(){
+  const f = getActiveFile();
+  if(!f) return;
+  if(!confirm('Reset saved progress for this schematic on this device?')) return;
+  f.completed.clear();
+  if(f.progressKey){
+    try{ localStorage.removeItem(f.progressKey); }catch(_err){}
+  }
+  renderAll();
 }
 
 /* ============================================================

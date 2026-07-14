@@ -126,18 +126,29 @@ npm run build:msi
 - `JSZip` and `pako` are bundled locally from npm
 - fonts are bundled locally from npm so the installed app does not depend on Google Fonts
 - the Windows icon is in `build/icon.ico`
+- Minecraft textures are **not bundled** with the app; load your own local `minecraft.jar` or resource pack `.zip` if you want real block textures in the list
 
 ---
 
 ## First-time GitHub users
 
-If you are completely new to GitHub, use this file next:
+If you are completely new to GitHub, use one of these guides next:
+
+### Browser upload guide
 
 ```text
 GITHUB_NEW_REPO_WALKTHROUGH.md
 ```
 
-It gives a full beginner-friendly, click-by-click setup guide for creating a brand new repository and getting your `.msi` build working.
+This is the click-by-click browser upload method.
+
+### Git + Command Prompt guide
+
+```text
+GITHUB_CMD_WALKTHROUGH.md
+```
+
+This is the beginner-friendly Git CMD method for creating the first commit and pushing the project to GitHub.
 
 ---
 
