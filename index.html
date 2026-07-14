@@ -418,10 +418,9 @@ tbody tr.row-entering{
       <span class="subtitle">litematica material analyzer</span>
     </div>
     <div class="masthead-actions">
-      <button class="texture-pack-btn" id="texturePackBtn">Load Minecraft textures</button>
+      <button class="texture-pack-btn" id="texturePackBtn">Use installed Minecraft textures</button>
       <button class="load-another" id="loadAnotherBtn">Load another file</button>
     </div>
-    <input type="file" id="texturePackInput" accept=".zip,.jar,application/zip" style="display:none;">
   </header>
 
   <!-- ============ UPLOAD SCREEN ============ -->
@@ -1060,28 +1059,63 @@ async function hydrateTextureIcons(){
   }
 }
 
-async function loadTexturePack(file){
-  showOverlay();
-  updateProgress(8, 'Loading Minecraft textures…');
-  try{
-    const buf = await file.arrayBuffer();
-    updateProgress(40, 'Opening .jar / resource pack…');
-    const zip = await JSZip.loadAsync(buf);
-    updateProgress(82, 'Preparing texture lookup…');
-    state.texturePack = {
-      zip,
-      fileName: file.name,
-      jsonCache: new Map(),
-      imageCache: new Map(),
-      blockCache: new Map(),
-      loadedAt: Date.now(),
-    };
-    updateProgress(100, 'Texture pack ready');
+function base64ToArrayBuffer(base64){
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+}
+
+async function applyTexturePackBuffer(arrayBuffer, fileName, sourceMeta = {}){
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  state.texturePack = {
+    zip,
+    fileName,
+    source: sourceMeta.source || 'detected',
+    versionName: sourceMeta.versionName || '',
+    jsonCache: new Map(),
+    imageCache: new Map(),
+    blockCache: new Map(),
+    loadedAt: Date.now(),
+  };
+  renderTexturePackStatus();
+  renderTable();
+}
+
+async function attemptAutoLoadMinecraftTextures(userInitiated = false){
+  if(!window.ledgerDesktop || typeof window.ledgerDesktop.detectMinecraftJar !== 'function'){
     renderTexturePackStatus();
-    renderTable();
+    return false;
+  }
+
+  showOverlay();
+  updateProgress(8, 'Looking for installed Minecraft…');
+
+  try{
+    const result = await window.ledgerDesktop.detectMinecraftJar();
+    if(!result || !result.found){
+      state.texturePack = null;
+      renderTexturePackStatus();
+      if(userInitiated){
+        alert((result && result.message) ? result.message : 'No installed Minecraft .jar was found on this computer.');
+      }
+      return false;
+    }
+
+    updateProgress(42, `Loading Minecraft ${result.versionName || ''} textures…`);
+    const arrayBuffer = base64ToArrayBuffer(result.dataBase64);
+    updateProgress(78, 'Preparing block textures…');
+    await applyTexturePackBuffer(arrayBuffer, result.fileName, { source: 'installed', versionName: result.versionName || '' });
+    updateProgress(100, 'Minecraft textures ready');
+    return true;
   }catch(err){
     console.error(err);
-    alert((err && err.message) ? err.message : 'Could not read the selected Minecraft .jar / resource pack.');
+    state.texturePack = null;
+    renderTexturePackStatus();
+    if(userInitiated){
+      alert((err && err.message) ? err.message : 'Could not auto-load textures from the local Minecraft installation.');
+    }
+    return false;
   }finally{
     hideOverlay();
   }
@@ -1186,7 +1220,6 @@ const fileQueue = document.getElementById('fileQueue');
 const uploadScreen = document.getElementById('uploadScreen');
 const dashboard = document.getElementById('dashboard');
 const texturePackBtn = document.getElementById('texturePackBtn');
-const texturePackInput = document.getElementById('texturePackInput');
 const loadAnotherBtn = document.getElementById('loadAnotherBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingStage = document.getElementById('loadingStage');
@@ -1214,12 +1247,10 @@ fileInput.addEventListener('change', e => {
   fileInput.value = '';
 });
 loadAnotherBtn.addEventListener('click', () => fileInput.click());
-texturePackBtn.addEventListener('click', () => texturePackInput.click());
-texturePackInput.addEventListener('change', async e => {
-  const [file] = Array.from(e.target.files || []);
-  if(file) await loadTexturePack(file);
-  texturePackInput.value = '';
-});
+texturePackBtn.addEventListener('click', () => attemptAutoLoadMinecraftTextures(true));
+if(window.ledgerDesktop && typeof window.ledgerDesktop.detectMinecraftJar === 'function'){
+  setTimeout(() => { attemptAutoLoadMinecraftTextures(false); }, 600);
+}
 
 function showOverlay(){
   loadingOverlay.classList.add('active');
@@ -1429,10 +1460,14 @@ function renderTexturePackStatus(){
   }
   if(state.texturePack){
     texturePackStatusEl.classList.add('accent-ready');
-    texturePackStatusEl.innerHTML = `<strong>Real Minecraft textures loaded:</strong> ${escapeHtml(state.texturePack.fileName)}. Texture icons now use assets from your own .jar / resource pack file.`;
+    const versionLabel = state.texturePack.versionName ? `Minecraft ${escapeHtml(state.texturePack.versionName)}` : escapeHtml(state.texturePack.fileName);
+    texturePackStatusEl.innerHTML = `<strong>Real Minecraft textures active:</strong> auto-loaded from installed ${versionLabel}.`;
+  } else if(window.ledgerDesktop && typeof window.ledgerDesktop.detectMinecraftJar === 'function') {
+    texturePackStatusEl.classList.add('accent-note');
+    texturePackStatusEl.innerHTML = `<strong>Using fallback icons for now.</strong> Click <strong>Use installed Minecraft textures</strong> to scan your local Minecraft installation and switch to real block textures.`;
   } else {
     texturePackStatusEl.classList.add('accent-note');
-    texturePackStatusEl.innerHTML = `<strong>Using fallback icons.</strong> Click <strong>Load Minecraft textures</strong> and choose your own <code>minecraft.jar</code> or resource pack <code>.zip</code> to show real block textures without bundling Mojang assets.`;
+    texturePackStatusEl.innerHTML = `<strong>Using fallback icons.</strong> Auto-detection of installed Minecraft textures is available in the desktop app build.`;
   }
 }
 

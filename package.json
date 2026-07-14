@@ -13,7 +13,12 @@
   "scripts": {
     "start": "electron .",
     "sync:vendor": "node scripts/sync-vendor.js",
-    "build:msi": "electron-builder --win msi --publish never"
+    "build:win": "electron-builder --win nsis --publish never",
+    "release:win": "electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.1",
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -29,32 +34,41 @@
     "productName": "Ledger",
     "copyright": "Copyright © 2026 intorez",
     "asar": true,
+    "electronUpdaterCompatibility": ">=2.16",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "build"
     },
     "files": [
       "package.json",
       "main.js",
+      "preload.js",
       "index.html",
       "vendor/**/*",
       "build/**/*",
       "LICENSE",
       "README.md"
     ],
-    "win": {
-      "target": "msi",
-      "icon": "build/icon.ico"
+    "publish": {
+      "provider": "github",
+      "owner": "iNotrez",
+      "repo": "litematica-ledger",
+      "releaseType": "release"
     },
-    "msi": {
-      "artifactName": "${productName}-${version}.${ext}",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "artifactName": "Ledger-Setup-${version}.${ext}",
       "oneClick": false,
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Ledger",
-      "menuCategory": "Ledger",
       "runAfterFinish": true,
-      "upgradeCode": "{12F0F920-D7D2-4585-9C62-8D261AFC569E}"
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
     }
   }
 }
