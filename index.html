@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Litematica Material Analyzer</title>
+<link rel="icon" type="image/png" href="build/icon.png">
+<link rel="stylesheet" href="vendor/fonts.css">
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/pako.min.js"></script>
+<style>
+/* ============================= TOKENS ============================= */
+:root{
+  --void:#0d100e;
+  --deepslate:#181c1a;
+  --panel:#1f2421;
+  --panel-raised:#262b27;
+  --line:#333a35;
+  --line-soft:#2a302b;
+  --grass:#7cc45f;
+  --grass-dim:#4d7a3d;
+  --gold:#e3b352;
+  --gold-dim:#8a6a2c;
+  --diamond:#6fd7d1;
+  --redstone:#d4543c;
+  --text:#e9e7de;
+  --text-dim:#a7ab9f;
+  --text-faint:#6c7168;
+  --font-display:'Space Grotesk', sans-serif;
+  --font-body:'Inter', sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+
+/* Top-of-page progress bar (tracks overall block-counting progress) */
+#topProgressBar{
+  position:fixed;top:0;left:0;width:100%;height:3px;
+  background:var(--line-soft);z-index:2000;
+  opacity:0;transition:opacity .25s ease;pointer-events:none;
+}
+#topProgressBar.active{opacity:1;}
+#topProgressFill{
+  height:100%;width:0%;
+  background:linear-gradient(90deg,var(--grass-dim),var(--grass),var(--gold));
+  box-shadow:0 0 8px rgba(124,196,95,.5);
+  transition:width .2s ease-out;
+}
+body{
+  background:
+    radial-gradient(ellipse 1200px 600px at 20% -10%, rgba(124,196,95,.06), transparent),
+    radial-gradient(ellipse 900px 500px at 100% 10%, rgba(227,179,82,.05), transparent),
+    var(--void);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:var(--deepslate);}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px;border:2px solid var(--deepslate);}
+::-webkit-scrollbar-thumb:hover{background:var(--grass-dim);}
+
+a,button,input,select{font-family:inherit;}
+button{cursor:pointer;}
+
+/* Focus visibility */
+:focus-visible{outline:2px solid var(--diamond);outline-offset:2px;}
+
+/* ============================= LAYOUT ============================= */
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 100px;}
+
+.masthead{
+  display:flex;align-items:baseline;justify-content:space-between;
+  border-bottom:1px solid var(--line);
+  padding-bottom:20px;margin-bottom:36px;
+  flex-wrap:wrap;gap:12px;
+}
+.masthead .brand{display:flex;align-items:baseline;gap:12px;}
+.masthead h1{
+  font-family:var(--font-display);font-weight:700;font-size:26px;letter-spacing:.2px;margin:0;
+  color:var(--text);
+}
+.masthead .brand-mark{color:var(--grass);}
+.masthead .subtitle{font-size:13px;color:var(--text-faint);font-family:var(--font-mono);}
+.load-another{
+  background:none;border:1px solid var(--line);color:var(--text-dim);
+  padding:9px 16px;border-radius:6px;font-size:13px;font-weight:500;
+  transition:all .2s var(--ease);display:none;
+}
+.load-another:hover{border-color:var(--grass-dim);color:var(--grass);}
+
+/* ============================= UPLOAD SCREEN ============================= */
+#uploadScreen{padding-top:6vh;}
+.upload-intro{text-align:center;max-width:560px;margin:0 auto 40px;}
+.upload-intro .eyebrow{
+  font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:14px;
+}
+.upload-intro h2{
+  font-family:var(--font-display);font-size:34px;font-weight:700;line-height:1.15;margin:0 0 14px;
+}
+.upload-intro p{color:var(--text-dim);font-size:15px;line-height:1.6;margin:0;}
+
+.dropzone{
+  position:relative;
+  max-width:640px;margin:0 auto;
+  border:1.5px dashed var(--line);
+  border-radius:14px;
+  padding:56px 32px;
+  text-align:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.015), transparent);
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease);
+  cursor:pointer;
+}
+.dropzone::before{
+  content:'';position:absolute;inset:0;border-radius:14px;pointer-events:none;
+  box-shadow:0 0 0 0 rgba(124,196,95,0);
+  transition:box-shadow .3s var(--ease);
+}
+.dropzone.dragover{
+  border-color:var(--grass);
+  background:linear-gradient(180deg, rgba(124,196,95,.08), rgba(124,196,95,.02));
+}
+.dropzone.dragover::before{
+  box-shadow:0 0 0 6px rgba(124,196,95,.08), 0 0 40px rgba(124,196,95,.15);
+}
+.dropzone .dz-icon{
+  width:52px;height:52px;margin:0 auto 20px;
+  color:var(--grass-dim);
+  transition:color .25s var(--ease), transform .25s var(--ease);
+}
+.dropzone.dragover .dz-icon{color:var(--grass);transform:translateY(-4px);}
+.dropzone h3{font-family:var(--font-display);font-size:18px;font-weight:600;margin:0 0 8px;}
+.dropzone p{color:var(--text-faint);font-size:13.5px;margin:0;}
+.dropzone .browse-link{color:var(--gold);text-decoration:underline;text-underline-offset:3px;}
+
+.file-queue{max-width:640px;margin:22px auto 0;display:flex;flex-direction:column;gap:8px;}
+.file-chip{
+  display:flex;align-items:center;gap:12px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:12px 16px;
+  animation:chipIn .35s var(--ease);
+}
+@keyframes chipIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.file-chip .chip-icon{color:var(--grass);flex-shrink:0;}
+.file-chip .chip-info{flex:1;min-width:0;}
+.file-chip .chip-name{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file-chip .chip-meta{font-size:11.5px;color:var(--text-faint);font-family:var(--font-mono);margin-top:2px;}
+.file-chip .chip-status{font-size:11px;font-family:var(--font-mono);color:var(--text-faint);flex-shrink:0;}
+.file-chip.status-done .chip-status{color:var(--grass);}
+.file-chip.status-error .chip-status{color:var(--redstone);}
+
+/* ============================= LOADING OVERLAY ============================= */
+#loadingOverlay{
+  position:fixed;inset:0;background:rgba(13,16,14,.88);backdrop-filter:blur(3px);
+  display:none;align-items:center;justify-content:center;z-index:1000;
+}
+#loadingOverlay.active{display:flex;}
+.loading-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:36px 42px;text-align:center;min-width:320px;
+}
+.spinner{
+  width:40px;height:40px;margin:0 auto 20px;
+  border-radius:50%;
+  border:3px solid var(--line);
+  border-top-color:var(--grass);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-card .lstage{font-family:var(--font-mono);font-size:12.5px;color:var(--text-dim);margin-bottom:14px;}
+.progress-track{width:260px;height:6px;background:var(--deepslate);border-radius:3px;overflow:hidden;margin:0 auto;}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--grass-dim),var(--grass));transition:width .15s ease-out;border-radius:3px;}
+.progress-pct{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:10px;}
+
+/* ============================= DASHBOARD ============================= */
+#dashboard{display:none;}
+#dashboard.active{display:block;}
+
+.file-tabs{display:flex;gap:6px;margin-bottom:28px;flex-wrap:wrap;}
+.file-tab{
+  background:var(--panel);border:1px solid var(--line);color:var(--text-dim);
+  padding:8px 14px;border-radius:7px;font-size:12.5px;font-weight:500;
+  transition:all .2s var(--ease);
+}
+.file-tab.active{background:var(--panel-raised);border-color:var(--grass-dim);color:var(--grass);}
+.file-tab:hover:not(.active){border-color:var(--text-faint);}
+
+/* Ledger summary strip */
+.ledger{
+  display:grid;grid-template-columns:repeat(5,1fr);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  margin-bottom:30px;background:var(--panel);
+}
+.ledger-stat{
+  padding:20px 18px;border-right:1px solid var(--line-soft);position:relative;
+}
+.ledger-stat:last-child{border-right:none;}
+.ledger-stat .stat-label{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text-faint);margin-bottom:8px;
+}
+.ledger-stat .stat-value{
+  font-family:var(--font-display);font-size:26px;font-weight:700;
+  color:var(--text);line-height:1;
+}
+.ledger-stat.accent-grass .stat-value{color:var(--grass);}
+.ledger-stat.accent-gold .stat-value{color:var(--gold);}
+.ledger-stat.accent-diamond .stat-value{color:var(--diamond);}
+.ledger-stat .stat-sub{font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:6px;}
+
+.meta-line{
+  font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);
+  margin:-16px 0 26px;padding-left:2px;
+}
+.meta-line span{color:var(--text-dim);}
+
+/* Controls bar */
+.controls{
+  display:flex;gap:10px;align-items:center;margin-bottom:18px;flex-wrap:wrap;
+}
+.search-box{
+  flex:1;min-width:200px;position:relative;
+}
+.search-box input{
+  width:100%;background:var(--panel);border:1px solid var(--line);color:var(--text);
+  padding:10px 14px 10px 36px;border-radius:8px;font-size:13.5px;
+  transition:border-color .2s var(--ease);
+}
+.search-box input:focus{border-color:var(--grass-dim);}
+.search-box svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-faint);width:15px;height:15px;}
+
+.controls select{
+  background:var(--panel);border:1px solid var(--line);color:var(--text);
+  padding:10px 12px;border-radius:8px;font-size:13px;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23a7ab9f'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;
+}
+.icon-btn{
+  background:var(--panel);border:1px solid var(--line);color:var(--text-dim);
+  padding:10px 13px;border-radius:8px;font-size:13px;display:flex;align-items:center;gap:6px;
+  transition:all .2s var(--ease);white-space:nowrap;
+}
+.icon-btn:hover{border-color:var(--grass-dim);color:var(--grass);}
+.icon-btn svg{width:14px;height:14px;}
+.toggle-completed{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);white-space:nowrap;padding:0 4px;}
+.toggle-completed input{accent-color:var(--grass);width:15px;height:15px;}
+
+/* ============================= TABLE ============================= */
+.section-label{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text-faint);margin:26px 0 10px;display:flex;align-items:center;gap:10px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--line-soft);}
+.section-label.completed-label{color:var(--grass-dim);}
+
+.table-wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);}
+table{width:100%;border-collapse:collapse;}
+thead th{
+  text-align:left;font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text-faint);font-weight:500;padding:12px 16px;border-bottom:1px solid var(--line);
+  background:var(--panel-raised);position:sticky;top:0;cursor:default;
+}
+th.col-check{width:44px;}
+th.col-qty,th.col-stacks,th.col-shulkers{text-align:right;width:100px;}
+th.col-pct{width:180px;}
+
+tbody tr{
+  border-bottom:1px solid var(--line-soft);
+  transition:background .18s ease, transform .18s ease;
+}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+tbody td{padding:11px 16px;font-size:13.5px;vertical-align:middle;}
+
+.checkbox{
+  width:18px;height:18px;border-radius:5px;border:1.5px solid var(--line);
+  background:var(--deepslate);appearance:none;cursor:pointer;position:relative;
+  transition:all .18s var(--ease);flex-shrink:0;
+}
+.checkbox:checked{background:var(--grass-dim);border-color:var(--grass);}
+.checkbox:checked::after{
+  content:'';position:absolute;left:5px;top:1px;width:4px;height:9px;
+  border:solid var(--void);border-width:0 2px 2px 0;transform:rotate(40deg);
+}
+.checkbox:hover{border-color:var(--grass);}
+
+.block-name{display:flex;align-items:center;gap:10px;}
+.block-icon-wrap{width:24px;height:24px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.iso-cube{width:24px;height:24px;display:block;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.4));}
+.name-text{font-weight:500;}
+.name-id{color:var(--text-faint);font-family:var(--font-mono);font-size:11px;margin-left:8px;}
+
+.credit-footer{
+  text-align:center;margin-top:48px;padding-top:22px;border-top:1px solid var(--line-soft);
+  font-family:var(--font-mono);font-size:12px;color:var(--text-faint);
+}
+.credit-footer .heart{color:var(--redstone);display:inline-block;animation:heartbeat 1.6s ease-in-out infinite;}
+@keyframes heartbeat{
+  0%,100%{transform:scale(1);}
+  15%{transform:scale(1.25);}
+  30%{transform:scale(1);}
+  45%{transform:scale(1.18);}
+  60%{transform:scale(1);}
+}
+.credit-footer .credit-name{color:var(--text-dim);font-weight:600;}
+
+.mono-num{font-family:var(--font-mono);text-align:right;color:var(--text-dim);}
+.mono-num.qty{color:var(--text);font-weight:600;}
+
+.pct-cell{display:flex;align-items:center;gap:10px;}
+.pct-bar-track{flex:1;height:6px;background:var(--deepslate);border-radius:3px;overflow:hidden;}
+.pct-bar-fill{
+  height:100%;width:0%;border-radius:3px;
+  background:linear-gradient(90deg, var(--grass-dim), var(--gold));
+  transition:width .6s cubic-bezier(.25,.8,.35,1);
+}
+.pct-num{font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);width:44px;text-align:right;flex-shrink:0;}
+
+/* completed row look */
+tbody tr.is-completed .name-text{color:var(--text-faint);text-decoration:line-through;text-decoration-color:var(--grass-dim);}
+tbody tr.is-completed{background:rgba(124,196,95,.02);}
+
+/* check/uncheck animations */
+tbody tr.row-leaving{
+  animation:rowLeave .45s var(--ease) forwards;
+}
+@keyframes rowLeave{
+  0%{opacity:1;transform:translateX(0) scale(1);}
+  40%{opacity:.5;transform:translateX(18px) scale(.98);}
+  100%{opacity:0;transform:translateX(18px) scale(.94);}
+}
+tbody tr.row-entering{
+  animation:rowEnter .45s var(--ease);
+}
+@keyframes rowEnter{
+  0%{opacity:0;transform:translateY(-10px) scale(.98);}
+  100%{opacity:1;transform:translateY(0) scale(1);}
+}
+
+.empty-state{padding:48px 24px;text-align:center;color:var(--text-faint);}
+.empty-state svg{width:36px;height:36px;margin-bottom:14px;color:var(--line);}
+.empty-state p{margin:0;font-size:13.5px;}
+
+/* pagination */
+.pagination{display:flex;align-items:center;justify-content:center;gap:14px;padding:16px;border-top:1px solid var(--line-soft);}
+.pagination button{
+  background:var(--panel-raised);border:1px solid var(--line);color:var(--text-dim);
+  padding:7px 14px;border-radius:6px;font-size:12.5px;transition:all .2s var(--ease);
+}
+.pagination button:disabled{opacity:.35;cursor:default;}
+.pagination button:not(:disabled):hover{border-color:var(--grass-dim);color:var(--grass);}
+.pagination .page-info{font-family:var(--font-mono);font-size:12px;color:var(--text-faint);}
+
+/* footer actions */
+.footer-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+
+@media (max-width:760px){
+  .ledger{grid-template-columns:repeat(2,1fr);}
+  .ledger-stat:nth-child(2n){border-right:none;}
+  .ledger-stat{border-bottom:1px solid var(--line-soft);}
+  th.col-shulkers, td.col-shulkers{display:none;}
+  .controls{flex-direction:column;align-items:stretch;}
+}
+
+@media print{
+  #uploadScreen,.controls,.footer-actions,.file-tabs,.load-another,.pagination,#loadingOverlay{display:none !important;}
+  body{background:#fff;color:#000;}
+  .ledger,.table-wrap{border-color:#ccc;}
+  .ledger-stat,thead th{background:#f5f5f5 !important;color:#000 !important;}
+  td,.stat-value,.name-text{color:#000 !important;}
+}
+</style>
+</head>
+<body>
+
+<div id="topProgressBar"><div id="topProgressFill"></div></div>
+
+<div class="wrap">
+  <header class="masthead">
+    <div class="brand">
+      <h1><span class="brand-mark">▣</span> Ledger</h1>
+      <span class="subtitle">litematica material analyzer</span>
+    </div>
+    <button class="load-another" id="loadAnotherBtn">Load another file</button>
+  </header>
+
+  <!-- ============ UPLOAD SCREEN ============ -->
+  <section id="uploadScreen">
+    <div class="upload-intro">
+      <div class="eyebrow">Schematic → Manifest</div>
+      <h2>Turn a .litematic file into a build-ready material list</h2>
+      <p>Drop in one or more schematics. Ledger reads every block placement — not just the palette — and tallies exact quantities, stacks, and shulker boxes.</p>
+    </div>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload litematic files">
+      <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h3>Drag &amp; drop your .litematic files</h3>
+      <p>or <span class="browse-link">browse from your computer</span></p>
+      <input type="file" id="fileInput" accept=".litematic" multiple style="display:none;">
+    </div>
+
+    <div class="file-queue" id="fileQueue"></div>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="dashboard">
+    <div class="file-tabs" id="fileTabs"></div>
+
+    <div class="ledger" id="ledgerStats"></div>
+    <div class="meta-line" id="metaLine"></div>
+
+    <div class="controls">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+        <input type="text" id="searchInput" placeholder="Search blocks…">
+      </div>
+      <select id="sortSelect">
+        <option value="qty-desc">Sort: Quantity (high → low)</option>
+        <option value="pct-desc">Sort: Percentage (high → low)</option>
+        <option value="name-asc">Sort: Name (A → Z)</option>
+      </select>
+      <label class="toggle-completed">
+        <input type="checkbox" id="toggleCompleted" checked>
+        Show completed
+      </label>
+      <button class="icon-btn" id="exportCsvBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        CSV
+      </button>
+      <button class="icon-btn" id="exportJsonBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        JSON
+      </button>
+      <button class="icon-btn" id="printBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2M6 14h12v7H6z" stroke-linejoin="round"/></svg>
+        Print
+      </button>
+    </div>
+
+    <div class="table-wrap" id="mainTableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-check"></th>
+            <th>Block</th>
+            <th class="col-qty">Quantity</th>
+            <th class="col-stacks">Stacks</th>
+            <th class="col-shulkers">Shulkers</th>
+            <th class="col-pct">Share</th>
+          </tr>
+        </thead>
+        <tbody id="mainTableBody"></tbody>
+      </table>
+      <div class="pagination" id="paginationBar" style="display:none;"></div>
+    </div>
+
+    <div id="completedWrap" style="display:none;">
+      <div class="section-label completed-label">Completed</div>
+      <div class="table-wrap">
+        <table>
+          <tbody id="completedTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <span class="meta-line" id="processingTimeLabel" style="margin:0;"></span>
+    </div>
+  </section>
+
+  <footer class="credit-footer">
+    Made with <span class="heart">❤️</span> by <span class="credit-name">intorez</span>
+  </footer>
+</div>
+
+<div id="loadingOverlay">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <div class="lstage" id="loadingStage">Reading file…</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-pct" id="progressPct">0%</div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ============================================================
+   CONSTANTS
+   ============================================================ */
+const STACK_SIZE = 64;
+const SHULKER_SIZE = 27 * 64; // 1728
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  files: [],          // { id, name, size, meta, blocks:[{id,name,qty,stacks,shulkers,pct}], completed:Set<string>, processingTime }
+  activeFileId: null,
+  search: '',
+  sort: 'qty-desc',
+  showCompleted: true,
+  page: 0,
+  pageSize: 200,
+};
+
+let fileCounter = 0;
+
+/* ============================================================
+   NBT READER  (big-endian, Java NBT)
+   Tag types: 0 End,1 Byte,2 Short,3 Int,4 Long,5 Float,6 Double,
+   7 ByteArray,8 String,9 List,10 Compound,11 IntArray,12 LongArray
+   ============================================================ */
+class NBTReader{
+  constructor(buffer){
+    this.view = new DataView(buffer);
+    this.bytes = new Uint8Array(buffer);
+    this.offset = 0;
+    this.decoder = new TextDecoder('utf-8');
+  }
+  readUByte(){ const v = this.view.getUint8(this.offset); this.offset += 1; return v; }
+  readByte(){ const v = this.view.getInt8(this.offset); this.offset += 1; return v; }
+  readShort(){ const v = this.view.getInt16(this.offset,false); this.offset += 2; return v; }
+  readUShort(){ const v = this.view.getUint16(this.offset,false); this.offset += 2; return v; }
+  readInt(){ const v = this.view.getInt32(this.offset,false); this.offset += 4; return v; }
+  readLong(){ const v = this.view.getBigInt64(this.offset,false); this.offset += 8; return v; }
+  readFloat(){ const v = this.view.getFloat32(this.offset,false); this.offset += 4; return v; }
+  readDouble(){ const v = this.view.getFloat64(this.offset,false); this.offset += 8; return v; }
+  readString(){
+    const len = this.readUShort();
+    const slice = this.bytes.subarray(this.offset, this.offset+len);
+    this.offset += len;
+    return this.decoder.decode(slice);
+  }
+  readByteArray(){
+    const len = this.readInt();
+    const arr = this.bytes.slice(this.offset, this.offset+len);
+    this.offset += len;
+    return arr;
+  }
+  readIntArray(){
+    const len = this.readInt();
+    const arr = new Int32Array(len);
+    for(let i=0;i<len;i++) arr[i] = this.readInt();
+    return arr;
+  }
+  readLongArray(){
+    const len = this.readInt();
+    const arr = new BigInt64Array(len);
+    for(let i=0;i<len;i++) arr[i] = this.readLong();
+    return arr;
+  }
+  readList(){
+    const type = this.readUByte();
+    const len = this.readInt();
+    const out = [];
+    for(let i=0;i<len;i++) out.push(this.readPayload(type));
+    return out;
+  }
+  readCompound(){
+    const obj = {};
+    while(true){
+      const type = this.readUByte();
+      if(type === 0) break;
+      const name = this.readString();
+      obj[name] = this.readPayload(type);
+    }
+    return obj;
+  }
+  readPayload(type){
+    switch(type){
+      case 1: return this.readByte();
+      case 2: return this.readShort();
+      case 3: return this.readInt();
+      case 4: return this.readLong();
+      case 5: return this.readFloat();
+      case 6: return this.readDouble();
+      case 7: return this.readByteArray();
+      case 8: return this.readString();
+      case 9: return this.readList();
+      case 10: return this.readCompound();
+      case 11: return this.readIntArray();
+      case 12: return this.readLongArray();
+      default: throw new Error('Unsupported NBT tag type: '+type);
+    }
+  }
+  readRoot(){
+    const type = this.readUByte();
+    if(type !== 10) throw new Error('Root NBT tag is not a compound (corrupt or unsupported file)');
+    this.readString(); // root name, usually empty
+    return this.readCompound();
+  }
+}
+
+/* ============================================================
+   BIT-PACKED BLOCK STATE ARRAY  (Litematica's fixed-width packing)
+   ============================================================ */
+function bitsPerEntryFor(paletteSize){
+  return Math.max(2, Math.ceil(Math.log2(Math.max(paletteSize,1))));
+}
+
+function toUnsigned64(v){ return v < 0n ? v + (1n<<64n) : v; }
+
+function readPackedIndex(longArray, index, bitsPerEntry){
+  const bitsBI = BigInt(bitsPerEntry);
+  const bitIndex = BigInt(index) * bitsBI;
+  const startArrIdx = Number(bitIndex >> 6n);
+  const startBitOffset = bitIndex & 63n;
+  const endArrIdx = Number((bitIndex + bitsBI - 1n) >> 6n);
+  const mask = (1n << bitsBI) - 1n;
+
+  const a = toUnsigned64(longArray[startArrIdx]);
+  let value;
+  if(startArrIdx === endArrIdx){
+    value = a >> startBitOffset;
+  } else {
+    const b = toUnsigned64(longArray[endArrIdx] ?? 0n);
+    const bitsInFirst = 64n - startBitOffset;
+    value = (a >> startBitOffset) | (b << bitsInFirst);
+  }
+  return Number(value & mask);
+}
+
+/* ============================================================
+   DECOMPRESSION  (.litematic is gzip-compressed NBT; some tools
+   wrap it in a plain zip, so both are supported)
+   ============================================================ */
+async function decompressToArrayBuffer(file){
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+
+  // Gzip magic: 1f 8b
+  if(bytes[0] === 0x1f && bytes[1] === 0x8b){
+    const inflated = pako.inflate(bytes);
+    return inflated.buffer.slice(inflated.byteOffset, inflated.byteOffset + inflated.byteLength);
+  }
+
+  // Zip magic: 'PK'
+  if(bytes[0] === 0x50 && bytes[1] === 0x4b){
+    const zip = await JSZip.loadAsync(buf);
+    let entry = Object.values(zip.files).find(f => !f.dir && /\.litematic$/i.test(f.name));
+    if(!entry) entry = Object.values(zip.files).find(f => !f.dir);
+    if(!entry) throw new Error('No litematic entry found inside the zip archive');
+    const inner = await entry.async('uint8array');
+    if(inner[0] === 0x1f && inner[1] === 0x8b){
+      const inflated = pako.inflate(inner);
+      return inflated.buffer.slice(inflated.byteOffset, inflated.byteOffset + inflated.byteLength);
+    }
+    return inner.buffer.slice(inner.byteOffset, inner.byteOffset + inner.byteLength);
+  }
+
+  // Assume raw, uncompressed NBT
+  return buf;
+}
+
+/* ============================================================
+   BLOCK NAME FORMATTING
+   ============================================================ */
+function formatBlockName(id){
+  const short = id.includes(':') ? id.split(':')[1] : id;
+  return short.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function isAirBlock(id){
+  return /(^|:)(air|cave_air|void_air)$/.test(id);
+}
+
+/* ============================================================
+   ORIGINAL BLOCK ICONS
+   Ledger draws its own small isometric "block" glyph for every
+   row instead of using any game-extracted artwork — Minecraft's
+   textures are Mojang's property, so nothing here is sourced from
+   or resembles the actual game files. Each icon's coloring is
+   picked from the block's id by category (wood species, ore type,
+   dye color, stone family, etc.) so rows read as recognizably
+   "that kind of block" at a glance, with a hashed fallback hue
+   for anything unrecognized.
+   ============================================================ */
+const DYE_COLORS = {
+  white:'#dcdad2', orange:'#df7728', magenta:'#b84fc4', light_blue:'#5bb3d9',
+  yellow:'#eec52d', lime:'#71c035', pink:'#ec9bb9', gray:'#3f4547',
+  light_gray:'#9b9e97', cyan:'#189aa3', purple:'#7c2fc0', blue:'#3b4bb8',
+  brown:'#65432d', green:'#57692a', red:'#a3312c', black:'#1b1b1f',
+};
+
+const WOOD_COLORS = {
+  oak:{top:'#b6905c', side:'#9c7847'},
+  spruce:{top:'#5c3f24', side:'#4a331d'},
+  birch:{top:'#d9c791', side:'#c3b27d'},
+  dark_oak:{top:'#3f2e1d', side:'#332516'},
+  acacia:{top:'#a9532a', side:'#8c451f'},
+  jungle:{top:'#a2764a', side:'#87613b'},
+  cherry:{top:'#e2a7ba', side:'#c98d9f'},
+  mangrove:{top:'#7c3830', side:'#652d27'},
+  crimson:{top:'#7d3157', side:'#652744'},
+  warped:{top:'#237e73', side:'#1c655c'},
+  bamboo:{top:'#a8a444', side:'#8d8a37'},
+};
+
+function findKey(map, id){
+  for(const key of Object.keys(map)) if(id.includes(key)) return key;
+  return null;
+}
+
+function shadeHex(hex, amt){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r = Math.max(0,Math.min(255, r+amt));
+  g = Math.max(0,Math.min(255, g+amt));
+  b = Math.max(0,Math.min(255, b+amt));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function hashHue(id){
+  let h = 0;
+  for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+function getBlockVisual(id){
+  const shortId = id.includes(':') ? id.split(':')[1] : id;
+
+  // ores — stone (or deepslate) base with a colored fleck accent
+  const oreMatch = shortId.match(/^(deepslate_)?(coal|iron|gold|diamond|emerald|redstone|lapis|copper)_ore$/);
+  if(oreMatch){
+    const base = oreMatch[1] ? {top:'#4a4a4c', side:'#3a3a3c'} : {top:'#9a9a9a', side:'#828282'};
+    const dotColors = { coal:'#242424', iron:'#e0cfae', gold:'#f4d35e', diamond:'#5fd9d1', emerald:'#3fce6a', redstone:'#c9432f', lapis:'#2a5ecf', copper:'#c87f4f' };
+    return {...base, dots: dotColors[oreMatch[2]]};
+  }
+
+  // raw / refined metal & gem blocks
+  const blockMatch = shortId.match(/^(raw_)?(iron|gold|copper|diamond|emerald|lapis|redstone|coal|netherite|amethyst)_block$/);
+  if(blockMatch){
+    const solid = { iron:'#dfd8c8', gold:'#e8c343', copper:'#c9793f', diamond:'#5fd9d1', emerald:'#3fce6a', lapis:'#2647a8', redstone:'#a8291d', coal:'#1c1c1c', netherite:'#3c3438', amethyst:'#8a5cc4' };
+    const c = solid[blockMatch[2]] || '#9a9a9a';
+    return { top:c, side: shadeHex(c,-30) };
+  }
+
+  // dyed blocks — wool, carpet, concrete, terracotta, stained glass, beds, candles, banners, shulker boxes
+  if(/wool|carpet|concrete_powder|concrete|terracotta|stained_glass|_bed$|candle|banner|shulker_box/.test(shortId)){
+    const dyeKey = findKey(DYE_COLORS, shortId);
+    if(dyeKey){
+      const c = DYE_COLORS[dyeKey];
+      return { top:c, side: shadeHex(c,-25), translucent: /stained_glass/.test(shortId) };
+    }
+  }
+
+  // wood family — logs, wood, planks, and anything carved from a named species
+  const species = findKey(WOOD_COLORS, shortId);
+  if(species) return { ...WOOD_COLORS[species] };
+
+  if(/leaves/.test(shortId)) return { top:'#5f9440', side:'#4d7b33' };
+  if(/^grass_block$/.test(shortId)) return { top:'#6cb84a', side:'#8a6d43' };
+  if(/mycelium/.test(shortId)) return { top:'#8a7a93', side:'#766a7e' };
+  if(/podzol/.test(shortId)) return { top:'#5c4326', side:'#4a3a26' };
+  if(/farmland|^dirt$|coarse_dirt|rooted_dirt|dirt_path/.test(shortId)) return { top:'#7a5a37', side:'#664b2d' };
+
+  if(/red_sand$|red_sandstone/.test(shortId)) return { top:'#a85a34', side:'#8f4a2a' };
+  if(/sandstone/.test(shortId)) return { top:'#dccb96', side:'#c7b47f' };
+  if(/sand/.test(shortId)) return { top:'#ddc98d', side:'#c7b479' };
+  if(/gravel/.test(shortId)) return { top:'#8f857b', side:'#786f66' };
+
+  if(/blackstone/.test(shortId)) return { top:'#2c262b', side:'#221d21' };
+  if(/deepslate/.test(shortId)) return { top:'#454749', side:'#38393b' };
+  if(/basalt/.test(shortId)) return { top:'#4a4750', side:'#3a3740' };
+  if(/(^|_)(stone|cobblestone|andesite|diorite|granite|tuff|calcite|smooth_stone)/.test(shortId)) return { top:'#9a9a9a', side:'#828282' };
+
+  if(/glass/.test(shortId)) return { top:'#bfe3e0', side:'#9fc9c6', translucent:true };
+  if(/ice/.test(shortId)) return { top:'#a9d8e6', side:'#8fc0d1', translucent:true };
+
+  if(/^water/.test(shortId)) return { top:'#3a6fd8', side:'#2c56ab', translucent:true };
+  if(/^lava/.test(shortId)) return { top:'#e08a2b', side:'#b56b1d' };
+
+  if(/nether_bricks?/.test(shortId)) return { top:'#4a2429', side:'#3a1c20' };
+  if(/netherrack|nylium/.test(shortId)) return { top: shortId.includes('warped') ? '#1c7a6f' : '#6e2b2b', side:'#591f1f' };
+  if(/soul_sand|soul_soil/.test(shortId)) return { top:'#4a4038', side:'#3a322c' };
+  if(/obsidian/.test(shortId)) return { top:'#1c1626', side:'#120e1a' };
+  if(/quartz/.test(shortId)) return { top:'#e8e4d8', side:'#cfc9b8' };
+
+  if(/^bricks?$/.test(shortId)) return { top:'#9c5a4a', side:'#804a3d' };
+  if(/bookshelf/.test(shortId)) return { top:'#a37f47', side:'#8a6d3b' };
+  if(/copper/.test(shortId)) return { top:'#c9793f', side:'#a9622f' };
+
+  // fallback — muted, deterministic hue so unmatched blocks stay visually consistent
+  const hue = hashHue(shortId);
+  return { top:`hsl(${hue},26%,54%)`, side:`hsl(${hue},26%,41%)` };
+}
+
+function isoCubeSvg(v){
+  const top = v.top;
+  const side = v.side || v.top;
+  const opacity = v.translucent ? '0.72' : '1';
+  const dots = v.dots ? `
+    <circle cx="6.5" cy="17" r="1.15" fill="${v.dots}"/>
+    <circle cx="10.5" cy="20.5" r="1.15" fill="${v.dots}"/>
+    <circle cx="19" cy="12.5" r="1.15" fill="${v.dots}"/>
+    <circle cx="21.5" cy="17" r="1.15" fill="${v.dots}"/>` : '';
+  return `<svg class="iso-cube" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg" opacity="${opacity}">
+    <polygon points="14,2 26,8 14,14 2,8" fill="${top}"/>
+    <polygon points="2,8 14,14 14,26 2,20" fill="${side}"/>
+    <polygon points="2,8 14,14 14,26 2,20" fill="#000" fill-opacity="0.05"/>
+    <polygon points="14,14 26,8 26,20 14,26" fill="${side}"/>
+    <polygon points="14,14 26,8 26,20 14,26" fill="#000" fill-opacity="0.2"/>
+    ${dots}
+  </svg>`;
+}
+
+function blockIconHtml(id){
+  const visual = getBlockVisual(id);
+  return `<span class="block-icon-wrap">${isoCubeSvg(visual)}</span>`;
+}
+
+/* ============================================================
+   CORE PARSE PIPELINE
+   ============================================================ */
+async function parseLitematic(file, onProgress){
+  onProgress(5, 'Reading file…');
+  const arrayBuffer = await decompressToArrayBuffer(file);
+
+  onProgress(25, 'Parsing NBT structure…');
+  const reader = new NBTReader(arrayBuffer);
+  const root = reader.readRoot();
+
+  const regionsTag = root.Regions || findRegionsDeep(root);
+  if(!regionsTag) throw new Error('Could not find region data — this may not be a valid Litematica file');
+
+  const metadata = root.Metadata || {};
+  const meta = {
+    name: metadata.Name || file.name.replace(/\.litematic$/i,''),
+    author: metadata.Author || 'Unknown',
+    description: metadata.Description || '',
+    regionCount: Object.keys(regionsTag).length,
+  };
+
+  onProgress(35, 'Counting blocks…');
+  const counts = new Map();
+  const regionNames = Object.keys(regionsTag);
+  let processedVolume = 0;
+  let totalVolume = 0;
+  const regionData = regionNames.map(name => {
+    const region = regionsTag[name];
+    const size = region.Size || {x:0,y:0,z:0};
+    const sizeX = Math.abs(size.x||0), sizeY = Math.abs(size.y||0), sizeZ = Math.abs(size.z||0);
+    const volume = sizeX*sizeY*sizeZ;
+    totalVolume += volume;
+    return { region, sizeX, sizeY, sizeZ, volume };
+  });
+
+  for(const {region, sizeX, sizeY, sizeZ, volume} of regionData){
+    const palette = region.BlockStatePalette || [];
+    const blockStates = region.BlockStates;
+    if(!blockStates || palette.length === 0 || volume === 0) continue;
+    const bpe = bitsPerEntryFor(palette.length);
+
+    // process in chunks so the UI can update / stay responsive
+    const CHUNK = 200000;
+    for(let start=0; start<volume; start+=CHUNK){
+      const end = Math.min(start+CHUNK, volume);
+      for(let i=start;i<end;i++){
+        const idx = readPackedIndex(blockStates, i, bpe);
+        const entry = palette[idx];
+        if(!entry || !entry.Name) continue;
+        const name = entry.Name;
+        if(isAirBlock(name)) continue;
+        counts.set(name, (counts.get(name)||0) + 1);
+      }
+      processedVolume += (end-start);
+      const pct = 35 + Math.round((processedVolume/Math.max(totalVolume,1)) * 55);
+      onProgress(Math.min(pct,90), `Counting blocks… (${processedVolume.toLocaleString()} / ${totalVolume.toLocaleString()})`);
+      // yield to the event loop
+      await new Promise(res => setTimeout(res, 0));
+    }
+  }
+
+  onProgress(95, 'Building report…');
+  const totalBlocks = Array.from(counts.values()).reduce((a,b)=>a+b,0);
+  const blocks = Array.from(counts.entries()).map(([id, qty]) => ({
+    id,
+    name: formatBlockName(id),
+    qty,
+    stacks: Math.ceil((qty/STACK_SIZE)*10)/10,
+    shulkers: Math.ceil((qty/SHULKER_SIZE)*10)/10,
+    pct: totalBlocks ? (qty/totalBlocks)*100 : 0,
+  }));
+
+  onProgress(100, 'Done');
+  return { meta, blocks, totalBlocks };
+}
+
+function findRegionsDeep(obj, depth=0){
+  if(depth > 4 || typeof obj !== 'object' || obj === null) return null;
+  if(obj.Regions) return obj.Regions;
+  for(const key of Object.keys(obj)){
+    const v = obj[key];
+    if(v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Uint8Array) && !(v instanceof BigInt64Array)){
+      const found = findRegionsDeep(v, depth+1);
+      if(found) return found;
+    }
+  }
+  return null;
+}
+
+/* ============================================================
+   FILE HANDLING / UI WIRING
+   ============================================================ */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileQueue = document.getElementById('fileQueue');
+const uploadScreen = document.getElementById('uploadScreen');
+const dashboard = document.getElementById('dashboard');
+const loadAnotherBtn = document.getElementById('loadAnotherBtn');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingStage = document.getElementById('loadingStage');
+const progressFill = document.getElementById('progressFill');
+const progressPct = document.getElementById('progressPct');
+const topProgressBar = document.getElementById('topProgressBar');
+const topProgressFill = document.getElementById('topProgressFill');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+
+['dragenter','dragover'].forEach(evt => {
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+});
+['dragleave','drop'].forEach(evt => {
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('dragover'); });
+});
+dropzone.addEventListener('drop', e => {
+  const files = Array.from(e.dataTransfer.files).filter(f => /\.litematic$/i.test(f.name));
+  if(files.length) handleFiles(files);
+});
+fileInput.addEventListener('change', e => {
+  const files = Array.from(e.target.files);
+  if(files.length) handleFiles(files);
+  fileInput.value = '';
+});
+loadAnotherBtn.addEventListener('click', () => fileInput.click());
+
+function showOverlay(){
+  loadingOverlay.classList.add('active');
+  topProgressBar.classList.add('active');
+  topProgressFill.style.width = '0%';
+}
+function hideOverlay(){
+  loadingOverlay.classList.remove('active');
+  topProgressFill.style.width = '100%';
+  setTimeout(() => { topProgressBar.classList.remove('active'); topProgressFill.style.width = '0%'; }, 400);
+}
+function updateProgress(pct, stage){
+  progressFill.style.width = pct + '%';
+  progressPct.textContent = Math.round(pct) + '%';
+  loadingStage.textContent = stage;
+  topProgressFill.style.width = pct + '%';
+}
+
+async function handleFiles(files){
+  showOverlay();
+  for(const file of files){
+    const chip = addQueueChip(file);
+    try{
+      const t0 = performance.now();
+      const result = await parseLitematic(file, (pct, stage) => updateProgress(pct, stage));
+      const t1 = performance.now();
+      const id = 'f'+(fileCounter++);
+      state.files.push({
+        id,
+        name: file.name,
+        size: file.size,
+        meta: result.meta,
+        blocks: result.blocks,
+        totalBlocks: result.totalBlocks,
+        completed: new Set(),
+        processingTime: (t1-t0),
+      });
+      chip.classList.add('status-done');
+      chip.querySelector('.chip-status').textContent = 'Parsed ✓';
+      state.activeFileId = id;
+    }catch(err){
+      console.error(err);
+      chip.classList.add('status-error');
+      chip.querySelector('.chip-status').textContent = 'Failed';
+      const meta = chip.querySelector('.chip-meta');
+      meta.textContent = (err && err.message) ? err.message : 'Could not parse file';
+    }
+  }
+  hideOverlay();
+  if(state.files.length){
+    uploadScreen.style.display = 'none';
+    dashboard.classList.add('active');
+    loadAnotherBtn.style.display = 'inline-block';
+    renderAll();
+  }
+}
+
+function addQueueChip(file){
+  const chip = document.createElement('div');
+  chip.className = 'file-chip';
+  chip.innerHTML = `
+    <svg class="chip-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6" stroke-linejoin="round"/></svg>
+    <div class="chip-info">
+      <div class="chip-name">${escapeHtml(file.name)}</div>
+      <div class="chip-meta">${formatBytes(file.size)}</div>
+    </div>
+    <div class="chip-status">Parsing…</div>
+  `;
+  fileQueue.appendChild(chip);
+  return chip;
+}
+
+function formatBytes(bytes){
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(2) + ' MB';
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+const fileTabsEl = document.getElementById('fileTabs');
+const ledgerStatsEl = document.getElementById('ledgerStats');
+const metaLineEl = document.getElementById('metaLine');
+const mainTableBody = document.getElementById('mainTableBody');
+const completedTableBody = document.getElementById('completedTableBody');
+const completedWrap = document.getElementById('completedWrap');
+const paginationBar = document.getElementById('paginationBar');
+const processingTimeLabel = document.getElementById('processingTimeLabel');
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+const toggleCompleted = document.getElementById('toggleCompleted');
+
+searchInput.addEventListener('input', e => { state.search = e.target.value.toLowerCase(); state.page = 0; renderTable(); });
+sortSelect.addEventListener('change', e => { state.sort = e.target.value; renderTable(); });
+toggleCompleted.addEventListener('change', e => { state.showCompleted = e.target.checked; renderTable(); });
+
+document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+document.getElementById('exportJsonBtn').addEventListener('click', exportJSON);
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+function getActiveFile(){
+  return state.files.find(f => f.id === state.activeFileId);
+}
+
+function renderAll(){
+  renderTabs();
+  renderSummary();
+  renderTable();
+}
+
+function renderTabs(){
+  fileTabsEl.innerHTML = '';
+  if(state.files.length <= 1){ fileTabsEl.style.display = 'none'; return; }
+  fileTabsEl.style.display = 'flex';
+  state.files.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'file-tab' + (f.id === state.activeFileId ? ' active' : '');
+    btn.textContent = f.name;
+    btn.addEventListener('click', () => {
+      state.activeFileId = f.id;
+      state.page = 0;
+      renderAll();
+    });
+    fileTabsEl.appendChild(btn);
+  });
+}
+
+function renderSummary(){
+  const f = getActiveFile();
+  if(!f){ ledgerStatsEl.innerHTML = ''; metaLineEl.innerHTML=''; processingTimeLabel.textContent=''; return; }
+  const totalStacks = f.blocks.reduce((a,b)=>a+b.qty,0) / STACK_SIZE;
+  const totalShulkers = f.blocks.reduce((a,b)=>a+b.qty,0) / SHULKER_SIZE;
+
+  ledgerStatsEl.innerHTML = `
+    <div class="ledger-stat">
+      <div class="stat-label">Unique blocks</div>
+      <div class="stat-value">${f.blocks.length.toLocaleString()}</div>
+    </div>
+    <div class="ledger-stat accent-grass">
+      <div class="stat-label">Total blocks</div>
+      <div class="stat-value">${f.totalBlocks.toLocaleString()}</div>
+    </div>
+    <div class="ledger-stat accent-gold">
+      <div class="stat-label">Stacks needed</div>
+      <div class="stat-value">${totalStacks.toFixed(1)}</div>
+    </div>
+    <div class="ledger-stat accent-diamond">
+      <div class="stat-label">Shulkers needed</div>
+      <div class="stat-value">${totalShulkers.toFixed(1)}</div>
+      <div class="stat-sub">${SHULKER_SIZE.toLocaleString()} blocks / shulker</div>
+    </div>
+    <div class="ledger-stat">
+      <div class="stat-label">Regions</div>
+      <div class="stat-value">${f.meta.regionCount}</div>
+    </div>
+  `;
+
+  metaLineEl.innerHTML = `<span>${escapeHtml(f.meta.name)}</span> — by <span>${escapeHtml(f.meta.author)}</span> · ${formatBytes(f.size)}`;
+  processingTimeLabel.textContent = `Processed in ${f.processingTime.toFixed(0)} ms`;
+}
+
+function getFilteredSorted(f){
+  let list = f.blocks.filter(b => !f.completed.has(b.id));
+  if(state.search){
+    list = list.filter(b => b.name.toLowerCase().includes(state.search) || b.id.toLowerCase().includes(state.search));
+  }
+  switch(state.sort){
+    case 'qty-desc': list = list.slice().sort((a,b)=>b.qty-a.qty); break;
+    case 'pct-desc': list = list.slice().sort((a,b)=>b.pct-a.pct); break;
+    case 'name-asc': list = list.slice().sort((a,b)=>a.name.localeCompare(b.name)); break;
+  }
+  return list;
+}
+
+function rowHtml(b, completed){
+  return `
+    <td class="col-check"><input type="checkbox" class="checkbox" data-id="${escapeHtml(b.id)}" ${completed?'checked':''}></td>
+    <td>
+      <div class="block-name">
+        ${blockIconHtml(b.id)}
+        <span class="name-text">${escapeHtml(b.name)}</span>
+        <span class="name-id">${escapeHtml(b.id)}</span>
+      </div>
+    </td>
+    <td class="mono-num qty">${b.qty.toLocaleString()}</td>
+    <td class="mono-num col-stacks">${b.stacks.toFixed(1)}</td>
+    <td class="mono-num col-shulkers">${b.shulkers.toFixed(1)}</td>
+    <td class="col-pct">
+      <div class="pct-cell">
+        <div class="pct-bar-track"><div class="pct-bar-fill" data-target="${b.pct}"></div></div>
+        <span class="pct-num">${b.pct.toFixed(1)}%</span>
+      </div>
+    </td>
+  `;
+}
+
+function renderTable(){
+  const f = getActiveFile();
+  mainTableBody.innerHTML = '';
+  completedTableBody.innerHTML = '';
+  paginationBar.style.display = 'none';
+  completedWrap.style.display = 'none';
+
+  if(!f){
+    mainTableBody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><p>No file loaded.</p></div></td></tr>`;
+    return;
+  }
+
+  const list = getFilteredSorted(f);
+
+  if(list.length === 0){
+    mainTableBody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <p>${state.search ? 'No blocks match your search.' : 'Every block on this list has been marked complete.'}</p>
+    </div></td></tr>`;
+  } else {
+    const totalPages = Math.ceil(list.length / state.pageSize);
+    state.page = Math.min(state.page, Math.max(totalPages-1,0));
+    const start = state.page * state.pageSize;
+    const pageItems = list.slice(start, start + state.pageSize);
+
+    for(const b of pageItems){
+      const tr = document.createElement('tr');
+      tr.dataset.id = b.id;
+      tr.innerHTML = rowHtml(b, false);
+      mainTableBody.appendChild(tr);
+    }
+
+    if(list.length > state.pageSize){
+      paginationBar.style.display = 'flex';
+      paginationBar.innerHTML = `
+        <button id="prevPage" ${state.page===0?'disabled':''}>← Prev</button>
+        <span class="page-info">Page ${state.page+1} of ${totalPages} · ${list.length.toLocaleString()} block types</span>
+        <button id="nextPage" ${state.page>=totalPages-1?'disabled':''}>Next →</button>
+      `;
+      document.getElementById('prevPage').addEventListener('click', () => { state.page--; renderTable(); });
+      document.getElementById('nextPage').addEventListener('click', () => { state.page++; renderTable(); });
+    }
+  }
+
+  if(state.showCompleted && f.completed.size > 0){
+    completedWrap.style.display = 'block';
+    const completedBlocks = f.blocks
+      .filter(b => f.completed.has(b.id))
+      .sort((a,b)=>b.qty-a.qty);
+    for(const b of completedBlocks){
+      const tr = document.createElement('tr');
+      tr.className = 'is-completed';
+      tr.dataset.id = b.id;
+      tr.innerHTML = rowHtml(b, true);
+      completedTableBody.appendChild(tr);
+    }
+  }
+
+  attachRowHandlers();
+  animatePercentBars();
+}
+
+function animatePercentBars(){
+  const fills = document.querySelectorAll('.pct-bar-fill');
+  requestAnimationFrame(() => {
+    fills.forEach(el => {
+      const target = el.getAttribute('data-target');
+      requestAnimationFrame(() => { el.style.width = target + '%'; });
+    });
+  });
+}
+
+function attachRowHandlers(){
+  document.querySelectorAll('.checkbox').forEach(cb => {
+    cb.addEventListener('change', onCheckboxToggle);
+  });
+}
+
+function onCheckboxToggle(e){
+  const f = getActiveFile();
+  if(!f) return;
+  const id = e.target.dataset.id;
+  const row = e.target.closest('tr');
+  const willComplete = e.target.checked;
+
+  row.classList.add('row-leaving');
+  row.addEventListener('animationend', function handler(){
+    row.removeEventListener('animationend', handler);
+    if(willComplete) f.completed.add(id);
+    else f.completed.delete(id);
+    renderSummaryCounts();
+    renderTable();
+  }, {once:true});
+}
+
+function renderSummaryCounts(){
+  // summary numbers (totals) don't change on completion, only the split between lists.
+  // kept as a hook in case future stats depend on completion state.
+}
+
+/* ============================================================
+   EXPORT
+   ============================================================ */
+function exportCSV(){
+  const f = getActiveFile();
+  if(!f) return;
+  const rows = [['Block','ID','Quantity','Stacks','Shulkers','Percentage','Completed']];
+  for(const b of f.blocks.slice().sort((a,b)=>b.qty-a.qty)){
+    rows.push([b.name, b.id, b.qty, b.stacks.toFixed(1), b.shulkers.toFixed(1), b.pct.toFixed(2)+'%', f.completed.has(b.id) ? 'Yes' : 'No']);
+  }
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  downloadBlob(csv, `${f.meta.name || 'litematic'}-materials.csv`, 'text/csv');
+}
+
+function exportJSON(){
+  const f = getActiveFile();
+  if(!f) return;
+  const data = {
+    file: f.name,
+    meta: f.meta,
+    totalBlocks: f.totalBlocks,
+    blocks: f.blocks.map(b => ({...b, completed: f.completed.has(b.id)})),
+  };
+  downloadBlob(JSON.stringify(data, null, 2), `${f.meta.name || 'litematic'}-materials.json`, 'application/json');
+}
+
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], {type: mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+})();
+</script>
+</body>
+</html>

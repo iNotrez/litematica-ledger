@@ -1,0 +1,61 @@
+{
+  "name": "ledger",
+  "version": "1.0.0",
+  "description": "Ledger desktop app — a Litematica/Minecraft schematic material analyzer packaged with Electron.",
+  "main": "main.js",
+  "author": "intorez",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iNotrez/litematica-ledger.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "sync:vendor": "node scripts/sync-vendor.js",
+    "build:msi": "electron-builder --win msi --publish never"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/space-grotesk": "^5.2.10",
+    "electron": "43.1.1",
+    "electron-builder": "26.15.3",
+    "jszip": "3.10.1",
+    "pako": "2.1.0"
+  },
+  "build": {
+    "appId": "com.intorez.ledger",
+    "productName": "Ledger",
+    "copyright": "Copyright © 2026 intorez",
+    "asar": true,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "package.json",
+      "main.js",
+      "index.html",
+      "vendor/**/*",
+      "build/**/*",
+      "LICENSE",
+      "README.md"
+    ],
+    "win": {
+      "target": "msi",
+      "icon": "build/icon.ico",
+      "publisherName": "intorez"
+    },
+    "msi": {
+      "artifactName": "${productName}-${version}.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ledger",
+      "menuCategory": "Ledger",
+      "runAfterFinish": true,
+      "upgradeCode": "{12F0F920-D7D2-4585-9C62-8D261AFC569E}"
+    }
+  }
+}
