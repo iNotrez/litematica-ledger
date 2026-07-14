@@ -43,8 +43,7 @@
     ],
     "win": {
       "target": "msi",
-      "icon": "build/icon.ico",
-      "publisherName": "intorez"
+      "icon": "build/icon.ico"
     },
     "msi": {
       "artifactName": "${productName}-${version}.${ext}",
