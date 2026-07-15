@@ -145,7 +145,8 @@ npm run release:win
 - `JSZip` and `pako` are bundled locally from npm
 - fonts are bundled locally from npm so the installed app does not depend on Google Fonts
 - the Windows icon is in `build/icon.ico`
-- actual Minecraft textures are **not bundled** with the app; the desktop build auto-detects the user's own local Minecraft installation and loads textures from there when available
+- Ledger includes bundled built-in block textures using the ProgrammerArt resource pack (see `THIRD_PARTY_NOTICES.md`)
+- Mojang's default Minecraft textures are not redistributed inside the app package
 
 ---
 

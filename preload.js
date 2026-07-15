@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('ledgerDesktop', {
-  detectMinecraftJar: () => ipcRenderer.invoke('ledger:detect-minecraft-jar')
+  loadBundledTexturePack: () => ipcRenderer.invoke('ledger:load-bundled-texture-pack')
 });

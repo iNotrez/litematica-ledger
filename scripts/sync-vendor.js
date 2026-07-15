@@ -4,6 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const vendorDir = path.join(root, 'vendor');
 const fontsDir = path.join(vendorDir, 'fonts');
+const programmerArtDir = path.join(vendorDir, 'programmerart');
 
 function copy(from, to) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
@@ -19,32 +20,39 @@ const copyJobs = [
   {
     from: path.join(path.dirname(require.resolve('pako/package.json')), 'dist', 'pako.min.js'),
     to: path.join(vendorDir, 'pako.min.js')
+  },
+  {
+    from: path.join(path.dirname(require.resolve('programmerart-textures/package.json')), 'ProgrammerArt-ResourcePack.zip'),
+    to: path.join(programmerArtDir, 'ProgrammerArt-ResourcePack.zip')
+  },
+  {
+    from: path.join(path.dirname(require.resolve('programmerart-textures/package.json')), 'LICENSE'),
+    to: path.join(programmerArtDir, 'LICENSE.txt')
+  },
+  {
+    from: path.join(path.dirname(require.resolve('programmerart-textures/package.json')), 'README.md'),
+    to: path.join(programmerArtDir, 'README.md')
   }
 ];
 
 const fontJobs = [
   ...[400, 500, 600, 700].map((weight) => ({
-    family: 'Inter',
     from: path.join(path.dirname(require.resolve('@fontsource/inter/package.json')), 'files', `inter-latin-${weight}-normal.woff2`),
-    to: path.join(fontsDir, `inter-latin-${weight}-normal.woff2`),
-    weight
+    to: path.join(fontsDir, `inter-latin-${weight}-normal.woff2`)
   })),
   ...[500, 600, 700].map((weight) => ({
-    family: 'Space Grotesk',
     from: path.join(path.dirname(require.resolve('@fontsource/space-grotesk/package.json')), 'files', `space-grotesk-latin-${weight}-normal.woff2`),
-    to: path.join(fontsDir, `space-grotesk-latin-${weight}-normal.woff2`),
-    weight
+    to: path.join(fontsDir, `space-grotesk-latin-${weight}-normal.woff2`)
   })),
   ...[400, 500, 600, 700].map((weight) => ({
-    family: 'JetBrains Mono',
     from: path.join(path.dirname(require.resolve('@fontsource/jetbrains-mono/package.json')), 'files', `jetbrains-mono-latin-${weight}-normal.woff2`),
-    to: path.join(fontsDir, `jetbrains-mono-latin-${weight}-normal.woff2`),
-    weight
+    to: path.join(fontsDir, `jetbrains-mono-latin-${weight}-normal.woff2`)
   }))
 ];
 
 fs.mkdirSync(vendorDir, { recursive: true });
 fs.mkdirSync(fontsDir, { recursive: true });
+fs.mkdirSync(programmerArtDir, { recursive: true });
 
 for (const job of copyJobs) {
   copy(job.from, job.to);

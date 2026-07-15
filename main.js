@@ -3,12 +3,12 @@ const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 const fs = require('fs/promises');
 const path = require('path');
-const os = require('os');
 
 const APP_TITLE = 'Ledger';
 const INDEX_PATH = path.join(__dirname, 'index.html');
 const PRELOAD_PATH = path.join(__dirname, 'preload.js');
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
+const BUNDLED_TEXTURE_PACK_PATH = path.join(__dirname, 'vendor', 'programmerart', 'ProgrammerArt-ResourcePack.zip');
 
 let mainWindow = null;
 let hasCheckedForUpdates = false;
@@ -49,100 +49,20 @@ function createWindow() {
   mainWindow.loadFile(INDEX_PATH);
 }
 
-function getMinecraftRoots() {
-  const home = os.homedir();
-  const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
-  const candidates = [
-    path.join(appData, '.minecraft'),
-    path.join(home, '.minecraft'),
-    path.join(home, 'Library', 'Application Support', 'minecraft')
-  ];
-  return Array.from(new Set(candidates));
-}
-
-async function fileExists(targetPath) {
+ipcMain.handle('ledger:load-bundled-texture-pack', async () => {
   try {
-    await fs.access(targetPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function detectInstalledMinecraftJar() {
-  const jarCandidates = [];
-
-  for (const root of getMinecraftRoots()) {
-    const versionsDir = path.join(root, 'versions');
-    if (!(await fileExists(versionsDir))) continue;
-
-    let versionEntries = [];
-    try {
-      versionEntries = await fs.readdir(versionsDir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const versionEntry of versionEntries) {
-      if (!versionEntry.isDirectory()) continue;
-      const versionDir = path.join(versionsDir, versionEntry.name);
-      const preferredJar = path.join(versionDir, `${versionEntry.name}.jar`);
-      const jarsToCheck = [preferredJar];
-
-      try {
-        const nested = await fs.readdir(versionDir, { withFileTypes: true });
-        for (const entry of nested) {
-          if (entry.isFile() && entry.name.toLowerCase().endsWith('.jar')) {
-            jarsToCheck.push(path.join(versionDir, entry.name));
-          }
-        }
-      } catch {
-        // ignore unreadable version folder
-      }
-
-      for (const jarPath of Array.from(new Set(jarsToCheck))) {
-        try {
-          const stats = await fs.stat(jarPath);
-          if (stats.isFile()) {
-            jarCandidates.push({
-              jarPath,
-              versionName: versionEntry.name,
-              modifiedMs: stats.mtimeMs,
-              size: stats.size
-            });
-          }
-        } catch {
-          // ignore missing jar candidates
-        }
-      }
-    }
-  }
-
-  if (jarCandidates.length === 0) {
-    return { found: false, message: 'No installed Minecraft .jar was found on this computer.' };
-  }
-
-  jarCandidates.sort((a, b) => b.modifiedMs - a.modifiedMs);
-  const selected = jarCandidates[0];
-  const bytes = await fs.readFile(selected.jarPath);
-
-  return {
-    found: true,
-    fileName: path.basename(selected.jarPath),
-    versionName: selected.versionName,
-    size: selected.size,
-    dataBase64: bytes.toString('base64')
-  };
-}
-
-ipcMain.handle('ledger:detect-minecraft-jar', async () => {
-  try {
-    return await detectInstalledMinecraftJar();
-  } catch (error) {
-    log.error('Minecraft jar detection failed', error);
+    const bytes = await fs.readFile(BUNDLED_TEXTURE_PACK_PATH);
     return {
-      found: false,
-      message: (error && error.message) ? error.message : 'Could not detect an installed Minecraft version.'
+      ok: true,
+      fileName: path.basename(BUNDLED_TEXTURE_PACK_PATH),
+      packName: 'ProgrammerArt',
+      dataBase64: bytes.toString('base64')
+    };
+  } catch (error) {
+    log.error('Bundled texture pack load failed', error);
+    return {
+      ok: false,
+      message: (error && error.message) ? error.message : 'Could not load the bundled block textures.'
     };
   }
 });

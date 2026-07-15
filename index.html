@@ -418,7 +418,7 @@ tbody tr.row-entering{
       <span class="subtitle">litematica material analyzer</span>
     </div>
     <div class="masthead-actions">
-      <button class="texture-pack-btn" id="texturePackBtn">Use installed Minecraft textures</button>
+      <button class="texture-pack-btn" id="texturePackBtn">Reload built-in textures</button>
       <button class="load-another" id="loadAnotherBtn">Load another file</button>
     </div>
   </header>
@@ -922,9 +922,117 @@ function blockIconHtml(id){
 }
 
 const TEXTURE_PREFERRED_KEYS = ['all','side','top','end','texture','front','up','north','particle','layer0','bottom'];
+const LEGACY_COLOR_MAP = { light_gray: 'silver', gray: 'gray' };
+const LEGACY_SPECIES_MAP = { dark_oak: 'big_oak', mangrove: 'big_oak', cherry: 'birch', bamboo: 'birch', crimson: 'acacia', warped: 'spruce' };
 
 function normalizeBlockId(id){
   return id.includes(':') ? id.split(':')[1] : id;
+}
+
+function unique(list){
+  return Array.from(new Set(list.filter(Boolean)));
+}
+
+function toLegacySpecies(species){
+  return LEGACY_SPECIES_MAP[species] || species;
+}
+
+function toLegacyColor(color){
+  return LEGACY_COLOR_MAP[color] || color;
+}
+
+function makePackTexturePath(name, folder = 'blocks'){
+  return `assets/minecraft/textures/${folder}/${name}.png`;
+}
+
+function legacyTextureCandidates(shortId){
+  const id = shortId.replace(/^waxed_/, '');
+  const out = [];
+  const pushBlock = (...names) => names.forEach((name) => out.push(makePackTexturePath(name, 'blocks')));
+  const pushItem = (...names) => names.forEach((name) => out.push(makePackTexturePath(name, 'items')));
+
+  pushBlock(id, id.replace(/_block$/, '_top'));
+
+  if(id === 'grass_block') pushBlock('grass_side', 'grass_top');
+  if(id === 'short_grass' || id === 'grass') pushBlock('tallgrass');
+  if(id === 'fern') pushBlock('fern');
+  if(id === 'water' || id.endsWith('_water')) pushBlock('water_still', 'water_flow');
+  if(id === 'lava' || id.endsWith('_lava')) pushBlock('lava_still', 'lava_flow');
+  if(id === 'bricks' || id === 'brick_block') pushBlock('brick');
+  if(id === 'stone_bricks') pushBlock('stonebrick');
+  if(id === 'mossy_stone_bricks') pushBlock('stonebrick_mossy');
+  if(id === 'cracked_stone_bricks') pushBlock('stonebrick_cracked');
+  if(id === 'chiseled_stone_bricks') pushBlock('stonebrick_carved');
+  if(id === 'sandstone') pushBlock('sandstone_normal');
+  if(id === 'cut_sandstone') pushBlock('sandstone_top');
+  if(id === 'smooth_sandstone') pushBlock('sandstone_smooth');
+  if(id === 'chiseled_sandstone') pushBlock('sandstone_carved');
+  if(id === 'red_sandstone') pushBlock('red_sand', 'sandstone_normal');
+  if(id === 'smooth_red_sandstone' || id === 'cut_red_sandstone' || id === 'chiseled_red_sandstone') pushBlock('red_sand', 'sandstone_smooth');
+  if(id === 'mycelium') pushBlock('mycelium_side', 'mycelium_top');
+  if(id === 'podzol') pushBlock('dirt_podzol_side', 'dirt_podzol_top');
+  if(id === 'melon' || id === 'melon_block') pushBlock('melon_side', 'melon_top');
+  if(id === 'pumpkin') pushBlock('pumpkin_side', 'pumpkin_top');
+  if(id === 'carved_pumpkin') pushBlock('pumpkin_face_off', 'pumpkin_side');
+  if(id === 'jack_o_lantern') pushBlock('pumpkin_face_on', 'pumpkin_side');
+  if(id === 'crafting_table') pushBlock('crafting_table_front');
+  if(id === 'furnace') pushBlock('furnace_front_off');
+  if(id === 'lit_furnace') pushBlock('furnace_front_on');
+  if(id === 'dispenser') pushBlock('dispenser_front_horizontal');
+  if(id === 'dropper') pushBlock('dropper_front_horizontal');
+  if(id === 'bookshelf') pushBlock('bookshelf');
+  if(id === 'snow_block') pushBlock('snow');
+  if(id === 'torch') pushBlock('torch_on');
+  if(id === 'wall_torch') pushBlock('torch_on');
+  if(id === 'redstone_torch') pushBlock('redstone_torch_on');
+  if(id === 'redstone_wall_torch') pushBlock('redstone_torch_on');
+  if(id === 'redstone_lamp') pushBlock('redstone_lamp_off');
+  if(id === 'glowstone') pushBlock('glowstone');
+  if(id === 'glass_pane') pushBlock('glass');
+  if(id === 'iron_bars') pushBlock('iron_bars');
+
+  const dyeWool = id.match(/^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_wool$/);
+  if(dyeWool) pushBlock(`wool_colored_${toLegacyColor(dyeWool[1])}`);
+
+  const dyeGlass = id.match(/^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_stained_glass$/);
+  if(dyeGlass) pushBlock(`glass_${toLegacyColor(dyeGlass[1])}`);
+
+  const dyeTerracotta = id.match(/^(white|orange|magenta|light_blue|yellow|lime|pink|gray|light_gray|cyan|purple|blue|brown|green|red|black)_terracotta$/);
+  if(dyeTerracotta) pushBlock(`hardened_clay_stained_${toLegacyColor(dyeTerracotta[1])}`);
+  if(id === 'terracotta') pushBlock('hardened_clay');
+
+  const woodLike = id.match(/^(stripped_)?(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped)_(planks|slab|stairs|fence|fence_gate|door|trapdoor|button|pressure_plate|sign|wall_sign|hanging_sign|wall_hanging_sign)$/);
+  if(woodLike){
+    const species = toLegacySpecies(woodLike[2]);
+    pushBlock(`planks_${species}`);
+    pushItem('sign');
+    if(woodLike[3] === 'door') pushBlock('door_wood_lower');
+  }
+
+  const woodLog = id.match(/^(stripped_)?(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo|crimson|warped)_(log|wood|stem|hyphae)$/);
+  if(woodLog){
+    const species = toLegacySpecies(woodLog[2]);
+    pushBlock(`log_${species}`, `log_${species}_top`);
+  }
+
+  const leaves = id.match(/^(oak|spruce|birch|jungle|acacia|dark_oak|mangrove|cherry|bamboo)_leaves$/);
+  if(leaves){
+    const species = toLegacySpecies(leaves[1]);
+    pushBlock(`leaves_${species}`, `leaves_${species}_opaque`);
+  }
+
+  const sapling = id.match(/^(oak|spruce|birch|jungle|acacia|dark_oak)_sapling$/);
+  if(sapling){
+    const species = sapling[1] === 'dark_oak' ? 'roofed_oak' : sapling[1];
+    pushBlock(`sapling_${species}`);
+  }
+
+  const ore = id.match(/^(deepslate_)?(coal|iron|gold|diamond|emerald|lapis|redstone|quartz)_ore$/);
+  if(ore) pushBlock(`${ore[2]}_ore`);
+  const mineralBlock = id.match(/^(coal|iron|gold|diamond|emerald|lapis|redstone|quartz)_block$/);
+  if(mineralBlock) pushBlock(`${mineralBlock[1]}_block`);
+
+  return unique(out);
 }
 
 function normalizeAssetRef(ref, kind){
@@ -1009,10 +1117,7 @@ async function buildModelTextureMap(modelRef, pack = state.texturePack, seen = n
 async function findTextureAssetPath(blockId, pack = state.texturePack){
   if(!pack) return null;
   const shortId = normalizeBlockId(blockId);
-  const directCandidates = [
-    normalizeAssetRef(`block/${shortId}`, 'texture'),
-    normalizeAssetRef(`block/${shortId.replace(/^waxed_/, '')}`, 'texture'),
-  ];
+  const directCandidates = legacyTextureCandidates(shortId);
   for(const candidate of directCandidates){
     if(candidate && pack.zip.file(candidate)) return candidate;
   }
@@ -1071,7 +1176,7 @@ async function applyTexturePackBuffer(arrayBuffer, fileName, sourceMeta = {}){
   state.texturePack = {
     zip,
     fileName,
-    source: sourceMeta.source || 'detected',
+    source: sourceMeta.source || 'bundled',
     versionName: sourceMeta.versionName || '',
     jsonCache: new Map(),
     imageCache: new Map(),
@@ -1082,38 +1187,38 @@ async function applyTexturePackBuffer(arrayBuffer, fileName, sourceMeta = {}){
   renderTable();
 }
 
-async function attemptAutoLoadMinecraftTextures(userInitiated = false){
-  if(!window.ledgerDesktop || typeof window.ledgerDesktop.detectMinecraftJar !== 'function'){
+async function loadBundledTextures(userInitiated = false){
+  if(!window.ledgerDesktop || typeof window.ledgerDesktop.loadBundledTexturePack !== 'function'){
     renderTexturePackStatus();
     return false;
   }
 
   showOverlay();
-  updateProgress(8, 'Looking for installed Minecraft…');
+  updateProgress(8, 'Loading built-in block textures…');
 
   try{
-    const result = await window.ledgerDesktop.detectMinecraftJar();
-    if(!result || !result.found){
+    const result = await window.ledgerDesktop.loadBundledTexturePack();
+    if(!result || !result.ok){
       state.texturePack = null;
       renderTexturePackStatus();
       if(userInitiated){
-        alert((result && result.message) ? result.message : 'No installed Minecraft .jar was found on this computer.');
+        alert((result && result.message) ? result.message : 'Could not load the bundled block textures.');
       }
       return false;
     }
 
-    updateProgress(42, `Loading Minecraft ${result.versionName || ''} textures…`);
+    updateProgress(42, 'Opening bundled texture pack…');
     const arrayBuffer = base64ToArrayBuffer(result.dataBase64);
     updateProgress(78, 'Preparing block textures…');
-    await applyTexturePackBuffer(arrayBuffer, result.fileName, { source: 'installed', versionName: result.versionName || '' });
-    updateProgress(100, 'Minecraft textures ready');
+    await applyTexturePackBuffer(arrayBuffer, result.fileName, { source: 'bundled', versionName: result.packName || 'ProgrammerArt' });
+    updateProgress(100, 'Built-in textures ready');
     return true;
   }catch(err){
     console.error(err);
     state.texturePack = null;
     renderTexturePackStatus();
     if(userInitiated){
-      alert((err && err.message) ? err.message : 'Could not auto-load textures from the local Minecraft installation.');
+      alert((err && err.message) ? err.message : 'Could not load the bundled block textures.');
     }
     return false;
   }finally{
@@ -1247,9 +1352,9 @@ fileInput.addEventListener('change', e => {
   fileInput.value = '';
 });
 loadAnotherBtn.addEventListener('click', () => fileInput.click());
-texturePackBtn.addEventListener('click', () => attemptAutoLoadMinecraftTextures(true));
-if(window.ledgerDesktop && typeof window.ledgerDesktop.detectMinecraftJar === 'function'){
-  setTimeout(() => { attemptAutoLoadMinecraftTextures(false); }, 600);
+texturePackBtn.addEventListener('click', () => loadBundledTextures(true));
+if(window.ledgerDesktop && typeof window.ledgerDesktop.loadBundledTexturePack === 'function'){
+  setTimeout(() => { loadBundledTextures(false); }, 600);
 }
 
 function showOverlay(){
@@ -1460,14 +1565,13 @@ function renderTexturePackStatus(){
   }
   if(state.texturePack){
     texturePackStatusEl.classList.add('accent-ready');
-    const versionLabel = state.texturePack.versionName ? `Minecraft ${escapeHtml(state.texturePack.versionName)}` : escapeHtml(state.texturePack.fileName);
-    texturePackStatusEl.innerHTML = `<strong>Real Minecraft textures active:</strong> auto-loaded from installed ${versionLabel}.`;
-  } else if(window.ledgerDesktop && typeof window.ledgerDesktop.detectMinecraftJar === 'function') {
+    texturePackStatusEl.innerHTML = `<strong>Built-in block textures active:</strong> using bundled ${escapeHtml(state.texturePack.versionName || 'ProgrammerArt')} textures included with Ledger.`;
+  } else if(window.ledgerDesktop && typeof window.ledgerDesktop.loadBundledTexturePack === 'function') {
     texturePackStatusEl.classList.add('accent-note');
-    texturePackStatusEl.innerHTML = `<strong>Using fallback icons for now.</strong> Click <strong>Use installed Minecraft textures</strong> to scan your local Minecraft installation and switch to real block textures.`;
+    texturePackStatusEl.innerHTML = `<strong>Using fallback icons for now.</strong> Click <strong>Reload built-in textures</strong> to retry loading the bundled texture pack.`;
   } else {
     texturePackStatusEl.classList.add('accent-note');
-    texturePackStatusEl.innerHTML = `<strong>Using fallback icons.</strong> Auto-detection of installed Minecraft textures is available in the desktop app build.`;
+    texturePackStatusEl.innerHTML = `<strong>Using fallback icons.</strong> Built-in bundled textures are only available in the desktop app build.`;
   }
 }
 
