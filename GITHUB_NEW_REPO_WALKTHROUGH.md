@@ -1,5 +1,13 @@
 # Ledger: complete GitHub walkthrough for absolute beginners
 
+> Prefer using Git in Command Prompt instead of browser file upload?
+>
+> Use this file instead:
+>
+> `GITHUB_CMD_WALKTHROUGH.md`
+>
+> That guide walks you through the Git CMD method step by step.
+
 This guide assumes:
 
 - you are creating a **brand new GitHub repository**

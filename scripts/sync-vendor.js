@@ -4,7 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const vendorDir = path.join(root, 'vendor');
 const fontsDir = path.join(vendorDir, 'fonts');
-const programmerArtDir = path.join(vendorDir, 'programmerart');
+const faithfulDir = path.join(vendorDir, 'faithful');
 
 function copy(from, to) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
@@ -20,18 +20,6 @@ const copyJobs = [
   {
     from: path.join(path.dirname(require.resolve('pako/package.json')), 'dist', 'pako.min.js'),
     to: path.join(vendorDir, 'pako.min.js')
-  },
-  {
-    from: path.join(path.dirname(require.resolve('programmerart-textures/package.json')), 'ProgrammerArt-ResourcePack.zip'),
-    to: path.join(programmerArtDir, 'ProgrammerArt-ResourcePack.zip')
-  },
-  {
-    from: path.join(path.dirname(require.resolve('programmerart-textures/package.json')), 'LICENSE'),
-    to: path.join(programmerArtDir, 'LICENSE.txt')
-  },
-  {
-    from: path.join(path.dirname(require.resolve('programmerart-textures/package.json')), 'README.md'),
-    to: path.join(programmerArtDir, 'README.md')
   }
 ];
 
@@ -52,7 +40,7 @@ const fontJobs = [
 
 fs.mkdirSync(vendorDir, { recursive: true });
 fs.mkdirSync(fontsDir, { recursive: true });
-fs.mkdirSync(programmerArtDir, { recursive: true });
+fs.mkdirSync(faithfulDir, { recursive: true });
 
 for (const job of copyJobs) {
   copy(job.from, job.to);
@@ -60,6 +48,17 @@ for (const job of copyJobs) {
 
 for (const job of fontJobs) {
   copy(job.from, job.to);
+}
+
+const expectedFaithfulFiles = [
+  path.join(faithfulDir, 'Faithful 64x - Release 14.zip'),
+  path.join(faithfulDir, 'LICENSE.txt')
+];
+
+for (const faithfulFile of expectedFaithfulFiles) {
+  if (!fs.existsSync(faithfulFile)) {
+    throw new Error(`Missing bundled Faithful asset: ${path.relative(root, faithfulFile)}`);
+  }
 }
 
 const fontCss = [
@@ -70,3 +69,4 @@ const fontCss = [
 
 fs.writeFileSync(path.join(vendorDir, 'fonts.css'), `${fontCss}\n`, 'utf8');
 console.log(`Wrote ${path.relative(root, path.join(vendorDir, 'fonts.css'))}`);
+console.log('Bundled Faithful 64x assets present.');

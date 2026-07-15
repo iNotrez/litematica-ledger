@@ -8,7 +8,7 @@ const APP_TITLE = 'Ledger';
 const INDEX_PATH = path.join(__dirname, 'index.html');
 const PRELOAD_PATH = path.join(__dirname, 'preload.js');
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
-const BUNDLED_TEXTURE_PACK_PATH = path.join(__dirname, 'vendor', 'programmerart', 'ProgrammerArt-ResourcePack.zip');
+const BUNDLED_TEXTURE_PACK_PATH = path.join(__dirname, 'vendor', 'faithful', 'Faithful 64x - Release 14.zip');
 
 let mainWindow = null;
 let hasCheckedForUpdates = false;
@@ -55,7 +55,7 @@ ipcMain.handle('ledger:load-bundled-texture-pack', async () => {
     return {
       ok: true,
       fileName: path.basename(BUNDLED_TEXTURE_PACK_PATH),
-      packName: 'ProgrammerArt',
+      packName: 'Faithful 64x',
       dataBase64: bytes.toString('base64')
     };
   } catch (error) {

@@ -145,7 +145,8 @@ npm run release:win
 - `JSZip` and `pako` are bundled locally from npm
 - fonts are bundled locally from npm so the installed app does not depend on Google Fonts
 - the Windows icon is in `build/icon.ico`
-- Ledger includes bundled built-in block textures using the ProgrammerArt resource pack (see `THIRD_PARTY_NOTICES.md`)
+- Ledger includes bundled built-in block textures using Faithful 64x (see `THIRD_PARTY_NOTICES.md`)
+- the bundled Faithful license file is included in `vendor/faithful/LICENSE.txt`
 - Mojang's default Minecraft textures are not redistributed inside the app package
 
 ---

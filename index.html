@@ -418,7 +418,7 @@ tbody tr.row-entering{
       <span class="subtitle">litematica material analyzer</span>
     </div>
     <div class="masthead-actions">
-      <button class="texture-pack-btn" id="texturePackBtn">Reload built-in textures</button>
+      <button class="texture-pack-btn" id="texturePackBtn">Reload Faithful 64x textures</button>
       <button class="load-another" id="loadAnotherBtn">Load another file</button>
     </div>
   </header>
@@ -924,6 +924,21 @@ function blockIconHtml(id){
 const TEXTURE_PREFERRED_KEYS = ['all','side','top','end','texture','front','up','north','particle','layer0','bottom'];
 const LEGACY_COLOR_MAP = { light_gray: 'silver', gray: 'gray' };
 const LEGACY_SPECIES_MAP = { dark_oak: 'big_oak', mangrove: 'big_oak', cherry: 'birch', bamboo: 'birch', crimson: 'acacia', warped: 'spruce' };
+const SMOOTH_VARIANT_MAP = {
+  smooth_stone: 'stone',
+  smooth_sandstone: 'sandstone',
+  smooth_red_sandstone: 'red_sandstone',
+  smooth_quartz: 'quartz_block',
+  cut_sandstone: 'sandstone_top',
+  cut_red_sandstone: 'red_sandstone_top',
+  chiseled_sandstone: 'chiseled_sandstone',
+  chiseled_red_sandstone: 'chiseled_red_sandstone',
+  chiseled_stone_bricks: 'chiseled_stone_bricks',
+  cracked_stone_bricks: 'cracked_stone_bricks',
+  mossy_stone_bricks: 'mossy_stone_bricks',
+  stone_bricks: 'stone_bricks',
+  grass_block: 'grass_block_top',
+};
 
 function normalizeBlockId(id){
   return id.includes(':') ? id.split(':')[1] : id;
@@ -943,6 +958,34 @@ function toLegacyColor(color){
 
 function makePackTexturePath(name, folder = 'blocks'){
   return `assets/minecraft/textures/${folder}/${name}.png`;
+}
+
+function modernTextureCandidates(shortId){
+  const out = [];
+  const push = (...names) => names.forEach((name) => out.push(makePackTexturePath(name, 'block')));
+  const id = shortId.replace(/^waxed_/, '');
+  push(id);
+  if(SMOOTH_VARIANT_MAP[id]) push(SMOOTH_VARIANT_MAP[id]);
+  if(id.endsWith('_wall')) push(id.replace(/_wall$/, ''));
+  if(id.endsWith('_slab')) push(id.replace(/_slab$/, ''));
+  if(id.endsWith('_stairs')) push(id.replace(/_stairs$/, ''));
+  if(id.endsWith('_fence')) push(id.replace(/_fence$/, '_planks'));
+  if(id.endsWith('_fence_gate')) push(id.replace(/_fence_gate$/, '_planks'));
+  if(id.endsWith('_button')) push(id.replace(/_button$/, '_planks'));
+  if(id.endsWith('_pressure_plate')) push(id.replace(/_pressure_plate$/, '_planks'));
+  if(id.endsWith('_door')) push(id.replace(/_door$/, '_door_top'), id.replace(/_door$/, '_door_bottom'));
+  if(id.endsWith('_trapdoor')) push(id.replace(/_trapdoor$/, '_trapdoor'));
+  if(id.endsWith('_sign') || id.endsWith('_hanging_sign')) push('oak_planks');
+  if(id === 'torch') push('torch');
+  if(id === 'wall_torch') push('torch');
+  if(id === 'redstone_torch' || id === 'redstone_wall_torch') push('redstone_torch');
+  if(id === 'soul_torch' || id === 'soul_wall_torch') push('soul_torch');
+  if(id === 'short_grass' || id === 'grass') push('short_grass');
+  if(id === 'tall_grass') push('tall_grass_top', 'tall_grass_bottom');
+  if(id === 'water') push('water_still');
+  if(id === 'lava') push('lava_still');
+  if(id === 'glass_pane') push('glass');
+  return unique(out);
 }
 
 function legacyTextureCandidates(shortId){
@@ -1117,7 +1160,10 @@ async function buildModelTextureMap(modelRef, pack = state.texturePack, seen = n
 async function findTextureAssetPath(blockId, pack = state.texturePack){
   if(!pack) return null;
   const shortId = normalizeBlockId(blockId);
-  const directCandidates = legacyTextureCandidates(shortId);
+  const directCandidates = unique([
+    ...modernTextureCandidates(shortId),
+    ...legacyTextureCandidates(shortId),
+  ]);
   for(const candidate of directCandidates){
     if(candidate && pack.zip.file(candidate)) return candidate;
   }
@@ -1210,8 +1256,8 @@ async function loadBundledTextures(userInitiated = false){
     updateProgress(42, 'Opening bundled texture pack…');
     const arrayBuffer = base64ToArrayBuffer(result.dataBase64);
     updateProgress(78, 'Preparing block textures…');
-    await applyTexturePackBuffer(arrayBuffer, result.fileName, { source: 'bundled', versionName: result.packName || 'ProgrammerArt' });
-    updateProgress(100, 'Built-in textures ready');
+    await applyTexturePackBuffer(arrayBuffer, result.fileName, { source: 'bundled', versionName: result.packName || 'Faithful 64x' });
+    updateProgress(100, 'Faithful 64x textures ready');
     return true;
   }catch(err){
     console.error(err);
@@ -1565,10 +1611,10 @@ function renderTexturePackStatus(){
   }
   if(state.texturePack){
     texturePackStatusEl.classList.add('accent-ready');
-    texturePackStatusEl.innerHTML = `<strong>Built-in block textures active:</strong> using bundled ${escapeHtml(state.texturePack.versionName || 'ProgrammerArt')} textures included with Ledger.`;
+    texturePackStatusEl.innerHTML = `<strong>Built-in block textures active:</strong> using bundled ${escapeHtml(state.texturePack.versionName || 'Faithful 64x')} textures included with Ledger.`;
   } else if(window.ledgerDesktop && typeof window.ledgerDesktop.loadBundledTexturePack === 'function') {
     texturePackStatusEl.classList.add('accent-note');
-    texturePackStatusEl.innerHTML = `<strong>Using fallback icons for now.</strong> Click <strong>Reload built-in textures</strong> to retry loading the bundled texture pack.`;
+    texturePackStatusEl.innerHTML = `<strong>Using fallback icons for now.</strong> Click <strong>Reload Faithful 64x textures</strong> to retry loading the bundled texture pack.`;
   } else {
     texturePackStatusEl.classList.add('accent-note');
     texturePackStatusEl.innerHTML = `<strong>Using fallback icons.</strong> Built-in bundled textures are only available in the desktop app build.`;
