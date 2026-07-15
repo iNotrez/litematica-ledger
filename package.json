@@ -1,6 +1,6 @@
 {
   "name": "ledger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Ledger desktop app — a Litematica/Minecraft schematic material analyzer packaged with Electron.",
   "main": "main.js",
   "author": "intorez",
